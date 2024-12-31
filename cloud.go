@@ -150,7 +150,7 @@ func runWebsocketClient() error {
 	if err != nil {
 		return err
 	}
-	defer c.CloseNow()
+	defer c.CloseNow() //nolint:errcheck
 	cloudLogger.Infof("websocket connected to %s", wsURL)
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	defer cancelRun()

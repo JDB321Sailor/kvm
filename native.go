@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jetkvm/kvm/resource"
+
 	"github.com/pion/webrtc/v4/pkg/media"
 )
 
@@ -90,8 +92,8 @@ func WriteCtrlMessage(message []byte) error {
 	return err
 }
 
-var nativeCtrlSocketListener net.Listener
-var nativeVideoSocketListener net.Listener
+var nativeCtrlSocketListener net.Listener  //nolint:unused
+var nativeVideoSocketListener net.Listener //nolint:unused
 
 var ctrlClientConnected = make(chan struct{})
 
