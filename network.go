@@ -107,7 +107,7 @@ func checkNetworkState() {
 	if newState != networkState {
 		logger.Info("network state changed")
 		// restart MDNS
-		startMDNS()
+		_ = startMDNS()
 		networkState = newState
 		requestDisplayUpdate()
 	}
