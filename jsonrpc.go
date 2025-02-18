@@ -10,8 +10,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
+	"time"
 
 	"github.com/pion/webrtc/v4"
+	"go.bug.st/serial"
 )
 
 type JSONRPCRequest struct {
@@ -32,6 +35,12 @@ type JSONRPCEvent struct {
 	JSONRPC string      `json:"jsonrpc"`
 	Method  string      `json:"method"`
 	Params  interface{} `json:"params,omitempty"`
+}
+
+type BacklightSettings struct {
+	MaxBrightness int `json:"max_brightness"`
+	DimAfter      int `json:"dim_after"`
+	OffAfter      int `json:"off_after"`
 }
 
 func writeJSONRPCResponse(response JSONRPCResponse, session *Session) {
@@ -183,6 +192,11 @@ func rpcSetEDID(edid string) error {
 	if err != nil {
 		return err
 	}
+
+	// Save EDID to config, allowing it to be restored on reboot.
+	config.EdidString = edid
+	SaveConfig()
+
 	return nil
 }
 
@@ -217,6 +231,52 @@ func rpcTryUpdate() error {
 		}
 	}()
 	return nil
+}
+
+func rpcSetBacklightSettings(params BacklightSettings) error {
+	blConfig := params
+
+	// NOTE: by default, the frontend limits the brightness to 64, as that's what the device originally shipped with.
+	if blConfig.MaxBrightness > 255 || blConfig.MaxBrightness < 0 {
+		return fmt.Errorf("maxBrightness must be between 0 and 255")
+	}
+
+	if blConfig.DimAfter < 0 {
+		return fmt.Errorf("dimAfter must be a positive integer")
+	}
+
+	if blConfig.OffAfter < 0 {
+		return fmt.Errorf("offAfter must be a positive integer")
+	}
+
+	config.DisplayMaxBrightness = blConfig.MaxBrightness
+	config.DisplayDimAfterSec = blConfig.DimAfter
+	config.DisplayOffAfterSec = blConfig.OffAfter
+
+	if err := SaveConfig(); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	log.Printf("rpc: display: settings applied, max_brightness: %d, dim after: %ds, off after: %ds", config.DisplayMaxBrightness, config.DisplayDimAfterSec, config.DisplayOffAfterSec)
+
+	// If the device started up with auto-dim and/or auto-off set to zero, the display init
+	// method will not have started the tickers. So in case that has changed, attempt to start the tickers now.
+	startBacklightTickers()
+
+	// Wake the display after the settings are altered, this ensures the tickers
+	// are reset to the new settings, and will bring the display up to maxBrightness.
+	// Calling with force set to true, to ignore the current state of the display, and force
+	// it to reset the tickers.
+	wakeDisplay(true)
+	return nil
+}
+
+func rpcGetBacklightSettings() (*BacklightSettings, error) {
+	return &BacklightSettings{
+		MaxBrightness: config.DisplayMaxBrightness,
+		DimAfter:      int(config.DisplayDimAfterSec),
+		OffAfter:      int(config.DisplayOffAfterSec),
+	}, nil
 }
 
 const (
@@ -379,7 +439,7 @@ func callRPCHandler(handler RPCHandler, params map[string]interface{}) (interfac
 				}
 				args[i] = reflect.ValueOf(newStruct).Elem()
 			} else {
-				return nil, fmt.Errorf("invalid parameter type for: %s", paramName)
+				return nil, fmt.Errorf("invalid parameter type for: %s, type: %s", paramName, paramType.Kind())
 			}
 		} else {
 			args[i] = convertedValue.Convert(paramType)
@@ -479,7 +539,6 @@ func rpcSetUsbEmulationState(enabled bool) error {
 }
 
 func rpcGetWakeOnLanDevices() ([]WakeOnLanDevice, error) {
-	LoadConfig()
 	if config.WakeOnLanDevices == nil {
 		return []WakeOnLanDevice{}, nil
 	}
@@ -491,13 +550,11 @@ type SetWakeOnLanDevicesParams struct {
 }
 
 func rpcSetWakeOnLanDevices(params SetWakeOnLanDevicesParams) error {
-	LoadConfig()
 	config.WakeOnLanDevices = params.Devices
 	return SaveConfig()
 }
 
 func rpcResetConfig() error {
-	LoadConfig()
 	config = defaultConfig
 	if err := SaveConfig(); err != nil {
 		return fmt.Errorf("failed to reset config: %w", err)
@@ -507,7 +564,172 @@ func rpcResetConfig() error {
 	return nil
 }
 
-// TODO: replace this crap with code generator
+type DCPowerState struct {
+	IsOn    bool    `json:"isOn"`
+	Voltage float64 `json:"voltage"`
+	Current float64 `json:"current"`
+	Power   float64 `json:"power"`
+}
+
+func rpcGetDCPowerState() (DCPowerState, error) {
+	return dcState, nil
+}
+
+func rpcSetDCPowerState(enabled bool) error {
+	log.Printf("[jsonrpc.go:rpcSetDCPowerState] Setting DC power state to: %v", enabled)
+	err := setDCPowerState(enabled)
+	if err != nil {
+		return fmt.Errorf("failed to set DC power state: %w", err)
+	}
+	return nil
+}
+
+func rpcGetActiveExtension() (string, error) {
+	return config.ActiveExtension, nil
+}
+
+func rpcSetActiveExtension(extensionId string) error {
+	if config.ActiveExtension == extensionId {
+		return nil
+	}
+	if config.ActiveExtension == "atx-power" {
+		unmountATXControl()
+	} else if config.ActiveExtension == "dc-power" {
+		unmountDCControl()
+	}
+	config.ActiveExtension = extensionId
+	if err := SaveConfig(); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+	if extensionId == "atx-power" {
+		mountATXControl()
+	} else if extensionId == "dc-power" {
+		mountDCControl()
+	}
+	return nil
+}
+
+func rpcSetATXPowerAction(action string) error {
+	logger.Debugf("[jsonrpc.go:rpcSetATXPowerAction] Executing ATX power action: %s", action)
+	switch action {
+	case "power-short":
+		logger.Debug("[jsonrpc.go:rpcSetATXPowerAction] Simulating short power button press")
+		return pressATXPowerButton(200 * time.Millisecond)
+	case "power-long":
+		logger.Debug("[jsonrpc.go:rpcSetATXPowerAction] Simulating long power button press")
+		return pressATXPowerButton(5 * time.Second)
+	case "reset":
+		logger.Debug("[jsonrpc.go:rpcSetATXPowerAction] Simulating reset button press")
+		return pressATXResetButton(200 * time.Millisecond)
+	default:
+		return fmt.Errorf("invalid action: %s", action)
+	}
+}
+
+type ATXState struct {
+	Power bool `json:"power"`
+	HDD   bool `json:"hdd"`
+}
+
+func rpcGetATXState() (ATXState, error) {
+	state := ATXState{
+		Power: ledPWRState,
+		HDD:   ledHDDState,
+	}
+	return state, nil
+}
+
+type SerialSettings struct {
+	BaudRate string `json:"baudRate"`
+	DataBits string `json:"dataBits"`
+	StopBits string `json:"stopBits"`
+	Parity   string `json:"parity"`
+}
+
+func rpcGetSerialSettings() (SerialSettings, error) {
+	settings := SerialSettings{
+		BaudRate: strconv.Itoa(serialPortMode.BaudRate),
+		DataBits: strconv.Itoa(serialPortMode.DataBits),
+		StopBits: "1",
+		Parity:   "none",
+	}
+
+	switch serialPortMode.StopBits {
+	case serial.OneStopBit:
+		settings.StopBits = "1"
+	case serial.OnePointFiveStopBits:
+		settings.StopBits = "1.5"
+	case serial.TwoStopBits:
+		settings.StopBits = "2"
+	}
+
+	switch serialPortMode.Parity {
+	case serial.NoParity:
+		settings.Parity = "none"
+	case serial.OddParity:
+		settings.Parity = "odd"
+	case serial.EvenParity:
+		settings.Parity = "even"
+	case serial.MarkParity:
+		settings.Parity = "mark"
+	case serial.SpaceParity:
+		settings.Parity = "space"
+	}
+
+	return settings, nil
+}
+
+var serialPortMode = defaultMode
+
+func rpcSetSerialSettings(settings SerialSettings) error {
+	baudRate, err := strconv.Atoi(settings.BaudRate)
+	if err != nil {
+		return fmt.Errorf("invalid baud rate: %v", err)
+	}
+	dataBits, err := strconv.Atoi(settings.DataBits)
+	if err != nil {
+		return fmt.Errorf("invalid data bits: %v", err)
+	}
+
+	var stopBits serial.StopBits
+	switch settings.StopBits {
+	case "1":
+		stopBits = serial.OneStopBit
+	case "1.5":
+		stopBits = serial.OnePointFiveStopBits
+	case "2":
+		stopBits = serial.TwoStopBits
+	default:
+		return fmt.Errorf("invalid stop bits: %s", settings.StopBits)
+	}
+
+	var parity serial.Parity
+	switch settings.Parity {
+	case "none":
+		parity = serial.NoParity
+	case "odd":
+		parity = serial.OddParity
+	case "even":
+		parity = serial.EvenParity
+	case "mark":
+		parity = serial.MarkParity
+	case "space":
+		parity = serial.SpaceParity
+	default:
+		return fmt.Errorf("invalid parity: %s", settings.Parity)
+	}
+	serialPortMode = &serial.Mode{
+		BaudRate: baudRate,
+		DataBits: dataBits,
+		StopBits: stopBits,
+		Parity:   parity,
+	}
+
+	port.SetMode(serialPortMode)
+
+	return nil
+}
+
 var rpcHandlers = map[string]RPCHandler{
 	"ping":                   {Func: rpcPing},
 	"getDeviceID":            {Func: rpcGetDeviceID},
@@ -554,4 +776,14 @@ var rpcHandlers = map[string]RPCHandler{
 	"getWakeOnLanDevices":    {Func: rpcGetWakeOnLanDevices},
 	"setWakeOnLanDevices":    {Func: rpcSetWakeOnLanDevices, Params: []string{"params"}},
 	"resetConfig":            {Func: rpcResetConfig},
+	"setBacklightSettings":   {Func: rpcSetBacklightSettings, Params: []string{"params"}},
+	"getBacklightSettings":   {Func: rpcGetBacklightSettings},
+	"getDCPowerState":        {Func: rpcGetDCPowerState},
+	"setDCPowerState":        {Func: rpcSetDCPowerState, Params: []string{"enabled"}},
+	"getActiveExtension":     {Func: rpcGetActiveExtension},
+	"setActiveExtension":     {Func: rpcSetActiveExtension, Params: []string{"extensionId"}},
+	"getATXState":            {Func: rpcGetATXState},
+	"setATXPowerAction":      {Func: rpcSetATXPowerAction, Params: []string{"action"}},
+	"getSerialSettings":      {Func: rpcGetSerialSettings},
+	"setSerialSettings":      {Func: rpcSetSerialSettings, Params: []string{"settings"}},
 }

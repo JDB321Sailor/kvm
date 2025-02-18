@@ -2,6 +2,8 @@ package kvm
 
 import (
 	"embed"
+	"encoding/json"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"path/filepath"
@@ -77,6 +79,9 @@ func setupRouter() *gin.Engine {
 	// We use this to determine if the device is setup
 	r.GET("/device/status", handleDeviceStatus)
 
+	// We use this to provide the UI with the device configuration
+	r.GET("/device/ui-config.js", handleDeviceUIConfig)
+
 	// We use this to setup the device in the welcome page
 	r.POST("/device/setup", handleSetup)
 
@@ -142,8 +147,6 @@ func handleWebRTCSession(c *gin.Context) {
 }
 
 func handleLogin(c *gin.Context) {
-	LoadConfig()
-
 	if config.LocalAuthMode == "noPassword" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Login is disabled in noPassword mode"})
 		return
@@ -156,7 +159,6 @@ func handleLogin(c *gin.Context) {
 		return
 	}
 
-	LoadConfig()
 	err := bcrypt.CompareHashAndPassword([]byte(config.HashedPassword), []byte(req.Password))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
@@ -172,7 +174,6 @@ func handleLogin(c *gin.Context) {
 }
 
 func handleLogout(c *gin.Context) {
-	LoadConfig()
 	config.LocalAuthToken = ""
 	if err := SaveConfig(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save configuration"})
@@ -186,8 +187,6 @@ func handleLogout(c *gin.Context) {
 
 func protectedMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		LoadConfig()
-
 		if config.LocalAuthMode == "noPassword" {
 			c.Next()
 			return
@@ -216,8 +215,6 @@ func RunWebServer() {
 }
 
 func handleDevice(c *gin.Context) {
-	LoadConfig()
-
 	response := LocalDevice{
 		AuthMode: &config.LocalAuthMode,
 		DeviceID: GetDeviceID(),
@@ -227,8 +224,6 @@ func handleDevice(c *gin.Context) {
 }
 
 func handleCreatePassword(c *gin.Context) {
-	LoadConfig()
-
 	if config.HashedPassword != "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password already set"})
 		return
@@ -269,8 +264,6 @@ func handleCreatePassword(c *gin.Context) {
 }
 
 func handleUpdatePassword(c *gin.Context) {
-	LoadConfig()
-
 	if config.HashedPassword == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is not set"})
 		return
@@ -314,8 +307,6 @@ func handleUpdatePassword(c *gin.Context) {
 }
 
 func handleDeletePassword(c *gin.Context) {
-	LoadConfig()
-
 	if config.HashedPassword == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password is not set"})
 		return
@@ -352,8 +343,6 @@ func handleDeletePassword(c *gin.Context) {
 }
 
 func handleDeviceStatus(c *gin.Context) {
-	LoadConfig()
-
 	response := DeviceStatus{
 		IsSetup: config.LocalAuthMode != "",
 	}
@@ -361,9 +350,22 @@ func handleDeviceStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func handleSetup(c *gin.Context) {
-	LoadConfig()
+func handleDeviceUIConfig(c *gin.Context) {
+	config, _ := json.Marshal(gin.H{
+		"CLOUD_API":      config.CloudURL,
+		"DEVICE_VERSION": builtAppVersion,
+	})
+	if config == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal config"})
+		return
+	}
 
+	response := fmt.Sprintf("window.JETKVM_CONFIG = %s;", config)
+
+	c.Data(http.StatusOK, "text/javascript; charset=utf-8", []byte(response))
+}
+
+func handleSetup(c *gin.Context) {
 	// Check if the device is already set up
 	if config.LocalAuthMode != "" || config.HashedPassword != "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Device is already set up"})

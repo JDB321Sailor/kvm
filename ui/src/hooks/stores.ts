@@ -22,6 +22,7 @@ const appendStatToMap = <T extends { timestamp: number }>(
 // Constants and types
 export type AvailableSidebarViews = "system" | "connection-stats";
 export type AvailableModalViews = "connection-stats" | "settings";
+export type AvailableTerminalTypes = "kvm" | "serial" | "none";
 
 export interface User {
   sub: string;
@@ -52,13 +53,13 @@ interface UIState {
   isAttachedVirtualKeyboardVisible: boolean;
   setAttachedVirtualKeyboardVisibility: (enabled: boolean) => void;
 
-  enableTerminal: boolean;
-  setEnableTerminal: (enabled: UIState["enableTerminal"]) => void;
+  terminalType: AvailableTerminalTypes;
+  setTerminalType: (enabled: UIState["terminalType"]) => void;
 }
 
 export const useUiStore = create<UIState>(set => ({
-  enableTerminal: false,
-  setEnableTerminal: enabled => set({ enableTerminal: enabled }),
+  terminalType: "none",
+  setTerminalType: type => set({ terminalType: type }),
 
   sidebarView: null,
   setSidebarView: view => set({ sidebarView: view }),
@@ -229,6 +230,12 @@ export interface VideoState {
   }) => void;
 }
 
+export interface BacklightSettings {
+  max_brightness: number;
+  dim_after: number;
+  off_after: number;
+}
+
 export const useVideoStore = create<VideoState>(set => ({
   width: 0,
   height: 0,
@@ -270,6 +277,9 @@ interface SettingsState {
   // Add new developer mode state
   developerMode: boolean;
   setDeveloperMode: (enabled: boolean) => void;
+
+  backlightSettings: BacklightSettings;
+  setBacklightSettings: (settings: BacklightSettings) => void;
 }
 
 export const useSettingsStore = create(
@@ -287,6 +297,13 @@ export const useSettingsStore = create(
       // Add developer mode with default value
       developerMode: false,
       setDeveloperMode: enabled => set({ developerMode: enabled }),
+
+      backlightSettings: {
+        max_brightness: 100,
+        dim_after: 10000,
+        off_after: 50000,
+      },
+      setBacklightSettings: (settings: BacklightSettings) => set({ backlightSettings: settings }),
     }),
     {
       name: "settings",
