@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"kvm/resource"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -80,7 +79,7 @@ var nbdDevice *NBDDevice
 const imagesFolder = "/userdata/jetkvm/images"
 
 func rpcMountBuiltInImage(filename string) error {
-	log.Println("Mount Built-In Image", filename)
+	logger.Infof("Mount Built-In Image: %s", filename)
 	_ = os.MkdirAll(imagesFolder, 0755)
 	imagePath := filepath.Join(imagesFolder, filename)
 

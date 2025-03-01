@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"kvm/internal/usbgadget"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,12 +46,12 @@ type BacklightSettings struct {
 func writeJSONRPCResponse(response JSONRPCResponse, session *Session) {
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		log.Println("Error marshalling JSONRPC response:", err)
+		logger.Warnf("Error marshalling JSONRPC response: %v", err)
 		return
 	}
 	err = session.RPCChannel.SendText(string(responseBytes))
 	if err != nil {
-		log.Println("Error sending JSONRPC response:", err)
+		logger.Warnf("Error sending JSONRPC response: %v", err)
 		return
 	}
 }
@@ -65,16 +64,16 @@ func writeJSONRPCEvent(event string, params interface{}, session *Session) {
 	}
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		log.Println("Error marshalling JSONRPC event:", err)
+		logger.Warnf("Error marshalling JSONRPC event: %v", err)
 		return
 	}
 	if session == nil || session.RPCChannel == nil {
-		log.Println("RPC channel not available")
+		logger.Info("RPC channel not available")
 		return
 	}
 	err = session.RPCChannel.SendText(string(requestBytes))
 	if err != nil {
-		log.Println("Error sending JSONRPC event:", err)
+		logger.Warnf("Error sending JSONRPC event: %v", err)
 		return
 	}
 }
@@ -95,7 +94,7 @@ func onRPCMessage(message webrtc.DataChannelMessage, session *Session) {
 		return
 	}
 
-	//log.Printf("Received RPC request: Method=%s, Params=%v, ID=%d", request.Method, request.Params, request.ID)
+	//logger.Infof("Received RPC request: Method=%s, Params=%v, ID=%d", request.Method, request.Params, request.ID)
 	handler, ok := rpcHandlers[request.Method]
 	if !ok {
 		errorResponse := JSONRPCResponse{
@@ -148,7 +147,7 @@ func rpcGetStreamQualityFactor() (float64, error) {
 }
 
 func rpcSetStreamQualityFactor(factor float64) error {
-	log.Printf("Setting stream quality factor to: %f", factor)
+	logger.Infof("Setting stream quality factor to: %f", factor)
 	var _, err = CallCtrlAction("set_video_quality_factor", map[string]interface{}{"quality_factor": factor})
 	if err != nil {
 		return err
@@ -184,10 +183,10 @@ func rpcGetEDID() (string, error) {
 
 func rpcSetEDID(edid string) error {
 	if edid == "" {
-		log.Println("Restoring EDID to default")
+		logger.Info("Restoring EDID to default")
 		edid = "00ffffffffffff0052620188008888881c150103800000780a0dc9a05747982712484c00000001010101010101010101010101010101023a801871382d40582c4500c48e2100001e011d007251d01e206e285500c48e2100001e000000fc00543734392d6648443732300a20000000fd00147801ff1d000a202020202020017b"
 	} else {
-		log.Printf("Setting EDID to: %s", edid)
+		logger.Infof("Setting EDID to: %s", edid)
 	}
 	_, err := CallCtrlAction("set_edid", map[string]interface{}{"edid": edid})
 	if err != nil {
@@ -258,7 +257,7 @@ func rpcSetBacklightSettings(params BacklightSettings) error {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	log.Printf("rpc: display: settings applied, max_brightness: %d, dim after: %ds, off after: %ds", config.DisplayMaxBrightness, config.DisplayDimAfterSec, config.DisplayOffAfterSec)
+	logger.Infof("rpc: display: settings applied, max_brightness: %d, dim after: %ds, off after: %ds", config.DisplayMaxBrightness, config.DisplayDimAfterSec, config.DisplayOffAfterSec)
 
 	// If the device started up with auto-dim and/or auto-off set to zero, the display init
 	// method will not have started the tickers. So in case that has changed, attempt to start the tickers now.
@@ -479,23 +478,23 @@ type RPCHandler struct {
 }
 
 func rpcSetMassStorageMode(mode string) (string, error) {
-	log.Printf("[jsonrpc.go:rpcSetMassStorageMode] Setting mass storage mode to: %s", mode)
+	logger.Infof("[jsonrpc.go:rpcSetMassStorageMode] Setting mass storage mode to: %s", mode)
 	var cdrom bool
 	if mode == "cdrom" {
 		cdrom = true
 	} else if mode != "file" {
-		log.Printf("[jsonrpc.go:rpcSetMassStorageMode] Invalid mode provided: %s", mode)
+		logger.Infof("[jsonrpc.go:rpcSetMassStorageMode] Invalid mode provided: %s", mode)
 		return "", fmt.Errorf("invalid mode: %s", mode)
 	}
 
-	log.Printf("[jsonrpc.go:rpcSetMassStorageMode] Setting mass storage mode to: %s", mode)
+	logger.Infof("[jsonrpc.go:rpcSetMassStorageMode] Setting mass storage mode to: %s", mode)
 
 	err := setMassStorageMode(cdrom)
 	if err != nil {
 		return "", fmt.Errorf("failed to set mass storage mode: %w", err)
 	}
 
-	log.Printf("[jsonrpc.go:rpcSetMassStorageMode] Mass storage mode set to %s", mode)
+	logger.Infof("[jsonrpc.go:rpcSetMassStorageMode] Mass storage mode set to %s", mode)
 
 	// Get the updated mode after setting
 	return rpcGetMassStorageMode()
@@ -564,7 +563,7 @@ func rpcResetConfig() error {
 		return fmt.Errorf("failed to reset config: %w", err)
 	}
 
-	log.Println("Configuration reset to default")
+	logger.Info("Configuration reset to default")
 	return nil
 }
 
@@ -580,7 +579,7 @@ func rpcGetDCPowerState() (DCPowerState, error) {
 }
 
 func rpcSetDCPowerState(enabled bool) error {
-	log.Printf("[jsonrpc.go:rpcSetDCPowerState] Setting DC power state to: %v", enabled)
+	logger.Infof("[jsonrpc.go:rpcSetDCPowerState] Setting DC power state to: %v", enabled)
 	err := setDCPowerState(enabled)
 	if err != nil {
 		return fmt.Errorf("failed to set DC power state: %w", err)
