@@ -20,6 +20,13 @@ type UsbConfig struct {
 	Product      string `json:"product"`
 }
 
+type UsbDevicesConfig struct {
+	AbsoluteMouse bool `json:"absolute_mouse"`
+	RelativeMouse bool `json:"relative_mouse"`
+	Keyboard      bool `json:"keyboard"`
+	MassStorage   bool `json:"mass_storage"`
+}
+
 type Config struct {
 	CloudURL             string            `json:"cloud_url"`
 	CloudAppURL          string            `json:"cloud_app_url"`
@@ -38,6 +45,7 @@ type Config struct {
 	DisplayDimAfterSec   int               `json:"display_dim_after_sec"`
 	DisplayOffAfterSec   int               `json:"display_off_after_sec"`
 	UsbConfig            *UsbConfig        `json:"usb_config"`
+	UsbDevices           *UsbDevicesConfig `json:"usb_devices"`
 }
 
 const configPath = "/userdata/kvm_config.json"
@@ -56,6 +64,12 @@ var defaultConfig = &Config{
 		SerialNumber: "",
 		Manufacturer: "JetKVM",
 		Product:      "USB Emulation Device",
+	},
+	UsbDevices: &UsbDevicesConfig{
+		AbsoluteMouse: true,
+		RelativeMouse: true,
+		Keyboard:      true,
+		MassStorage:   true,
 	},
 }
 
@@ -93,6 +107,10 @@ func LoadConfig() {
 	// merge the user config with the default config
 	if loadedConfig.UsbConfig == nil {
 		loadedConfig.UsbConfig = defaultConfig.UsbConfig
+	}
+
+	if loadedConfig.UsbDevices == nil {
+		loadedConfig.UsbDevices = defaultConfig.UsbDevices
 	}
 
 	config = &loadedConfig

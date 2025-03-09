@@ -1,6 +1,7 @@
 package kvm
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -20,6 +21,114 @@ const gadgetPath = "/sys/kernel/config/usb_gadget"
 const kvmGadgetPath = "/sys/kernel/config/usb_gadget/jetkvm"
 const configC1Path = "/sys/kernel/config/usb_gadget/jetkvm/configs/c.1"
 
+func (u *UsbDevicesConfig) isGadgetConfigItemEnabled(itemKey string) bool {
+	switch itemKey {
+	case "absolute_mouse":
+		return u.AbsoluteMouse
+	case "relative_mouse":
+		return u.RelativeMouse
+	case "keyboard":
+		return u.Keyboard
+	case "mass_storage_base":
+		return u.MassStorage
+	case "mass_storage_usb0":
+		return u.MassStorage
+	default:
+		return true
+	}
+}
+
+type gadgetConfigItem struct {
+	device      string
+	path        []string
+	attrs       gadgetAttributes
+	configAttrs gadgetAttributes
+	configPath  string
+	reportDesc  []byte
+}
+
+type gadgetAttributes map[string]string
+
+var gadgetConfig = map[string]gadgetConfigItem{
+	"base": {
+		attrs: gadgetAttributes{
+			"bcdUSB":    "0x0200", // USB 2.0
+			"idVendor":  "0x1d6b", // The Linux Foundation
+			"idProduct": "0104",   // Multifunction Composite Gadget¬
+			"bcdDevice": "0100",
+		},
+		configAttrs: gadgetAttributes{
+			"MaxPower": "250", // in unit of 2mA
+		},
+	},
+	"base_info": {
+		path: []string{"strings", "0x409"},
+		attrs: gadgetAttributes{
+			"serialnumber": GetDeviceID(),
+			"manufacturer": "JetKVM",
+			"product":      "JetKVM USB Emulation Device",
+		},
+		configAttrs: gadgetAttributes{
+			"configuration": "Config 1: HID",
+		},
+	},
+	// keyboard HID
+	"keyboard": {
+		device:     "hid.usb0",
+		path:       []string{"functions", "hid.usb0"},
+		configPath: path.Join(configC1Path, "hid.usb0"),
+		attrs: gadgetAttributes{
+			"protocol":      "1",
+			"subclass":      "1",
+			"report_length": "8",
+		},
+		reportDesc: KeyboardReportDesc,
+	},
+	// mouse HID
+	"absolute_mouse": {
+		device:     "hid.usb1",
+		path:       []string{"functions", "hid.usb1"},
+		configPath: path.Join(configC1Path, "hid.usb1"),
+		attrs: gadgetAttributes{
+			"protocol":      "2",
+			"subclass":      "1",
+			"report_length": "6",
+		},
+		reportDesc: CombinedAbsoluteMouseReportDesc,
+	},
+	// relative mouse HID
+	"relative_mouse": {
+		device:     "hid.usb2",
+		path:       []string{"functions", "hid.usb2"},
+		configPath: path.Join(configC1Path, "hid.usb2"),
+		attrs: gadgetAttributes{
+			"protocol":      "2",
+			"subclass":      "1",
+			"report_length": "4",
+		},
+		reportDesc: CombinedRelativeMouseReportDesc,
+	},
+	// mass storage
+	"mass_storage_base": {
+		device:     "mass_storage.usb0",
+		path:       []string{"functions", "mass_storage.usb0"},
+		configPath: path.Join(configC1Path, "mass_storage.usb0"),
+		attrs: gadgetAttributes{
+			"stall": "1",
+		},
+	},
+	"mass_storage_usb0": {
+		path: []string{"functions", "mass_storage.usb0", "lun.0"},
+		attrs: gadgetAttributes{
+			"cdrom":          "1",
+			"ro":             "1",
+			"removable":      "1",
+			"file":           "\n",
+			"inquiry_string": "JetKVM Virtual Media",
+		},
+	},
+}
+
 func mountConfigFS() error {
 	_, err := os.Stat(gadgetPath)
 	if os.IsNotExist(err) {
@@ -30,6 +139,109 @@ func mountConfigFS() error {
 	} else {
 		return fmt.Errorf("unable to access usb gadget path: %w", err)
 	}
+	return nil
+}
+
+func writeIfDifferent(filePath string, content []byte, permMode os.FileMode) error {
+	if _, err := os.Stat(filePath); err == nil {
+		oldContent, err := os.ReadFile(filePath)
+		if err == nil {
+			if bytes.Equal(oldContent, content) {
+				logger.Tracef("skipping writing to %s as it already has the correct content", filePath)
+				return nil
+			}
+
+			if len(oldContent) == len(content)+1 &&
+				bytes.Equal(oldContent[:len(content)], content) &&
+				oldContent[len(content)] == 10 {
+				logger.Tracef("skipping writing to %s as it already has the correct content", filePath)
+				return nil
+			}
+
+			logger.Tracef("writing to %s as it has different content %v %v", filePath, oldContent, content)
+		}
+	}
+	return os.WriteFile(filePath, content, permMode)
+}
+
+func disableGadgetItemConfig(item gadgetConfigItem) error {
+	// remove symlink if exists
+	if item.configPath != "" {
+		if _, err := os.Lstat(item.configPath); os.IsNotExist(err) {
+			logger.Tracef("symlink %s does not exist", item.configPath)
+		} else {
+			err := os.Remove(item.configPath)
+			if err != nil {
+				return fmt.Errorf("failed to remove symlink %s: %w", item.configPath, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func writeGadgetItemConfig(item gadgetConfigItem) error {
+	// create directory for the item
+	gadgetItemPathArr := append([]string{kvmGadgetPath}, item.path...)
+	gadgetItemPath := filepath.Join(gadgetItemPathArr...)
+	err := os.MkdirAll(gadgetItemPath, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create path %s: %w", gadgetItemPath, err)
+	}
+
+	if len(item.configAttrs) > 0 {
+		configItemPathArr := append([]string{configC1Path}, item.path...)
+		configItemPath := filepath.Join(configItemPathArr...)
+		err = os.MkdirAll(configItemPath, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create path %s: %w", config, err)
+		}
+
+		err = writeGadgetAttrs(configItemPath, item.configAttrs)
+		if err != nil {
+			return fmt.Errorf("failed to write config attributes for %s: %w", configItemPath, err)
+		}
+	}
+
+	if len(item.attrs) > 0 {
+		// write attributes for the item
+		err = writeGadgetAttrs(gadgetItemPath, item.attrs)
+		if err != nil {
+			return fmt.Errorf("failed to write attributes for %s: %w", gadgetItemPath, err)
+		}
+	}
+
+	// write report descriptor if available
+	if item.reportDesc != nil {
+		err = writeIfDifferent(path.Join(gadgetItemPath, "report_desc"), item.reportDesc, 0644)
+		if err != nil {
+			return err
+		}
+	}
+
+	// create symlink if configPath is set
+	if item.configPath != "" {
+		logger.Tracef("Creating symlink from %s to %s", item.configPath, gadgetItemPath)
+
+		// check if the symlink already exists, if yes, check if it points to the correct path
+		if _, err := os.Lstat(item.configPath); err == nil {
+			linkPath, err := os.Readlink(item.configPath)
+			if err != nil || linkPath != gadgetItemPath {
+				err = os.Remove(item.configPath)
+				if err != nil {
+					return fmt.Errorf("failed to remove existing symlink %s: %w", item.configPath, err)
+				}
+			}
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to check if symlink exists: %w", err)
+		}
+
+		err = os.Symlink(gadgetItemPath, item.configPath)
+		if err != nil {
+			return fmt.Errorf("failed to create symlink from %s to %s: %w", item.configPath, gadgetItemPath, err)
+		}
+	}
+
 	return nil
 }
 
@@ -119,132 +331,22 @@ func writeGadgetConfig() error {
 		return err
 	}
 
-	err = writeGadgetAttrs(kvmGadgetPath, [][]string{
-		{"bcdUSB", "0x0200"},                      //USB 2.0
-		{"idVendor", config.UsbConfig.VendorId},   //The Linux Foundation
-		{"idProduct", config.UsbConfig.ProductId}, //Multifunction Composite Gadget¬
-		{"bcdDevice", "0100"},
-	})
-	if err != nil {
-		return err
-	}
-
-	gadgetStringsPath := filepath.Join(kvmGadgetPath, "strings", "0x409")
-	err = os.MkdirAll(gadgetStringsPath, 0755)
-	if err != nil {
-		return err
-	}
-
-	err = writeGadgetAttrs(gadgetStringsPath, [][]string{
-		{"serialnumber", GetDeviceID()},
-		{"manufacturer", config.UsbConfig.Manufacturer},
-		{"product", config.UsbConfig.Product},
-	})
-	if err != nil {
-		return err
-	}
-
-	configC1StringsPath := path.Join(configC1Path, "strings", "0x409")
-	err = os.MkdirAll(configC1StringsPath, 0755)
-	if err != nil {
-		return err
-	}
-
-	err = writeGadgetAttrs(configC1Path, [][]string{
-		{"MaxPower", "250"}, //in unit of 2mA
-	})
-	if err != nil {
-		return err
-	}
-
-	err = writeGadgetAttrs(configC1StringsPath, [][]string{
-		{"configuration", "Config 1: HID"},
-	})
-	if err != nil {
-		return err
-	}
-
-	//keyboard HID
-	hid0Path := path.Join(kvmGadgetPath, "functions", "hid.usb0")
-	err = os.MkdirAll(hid0Path, 0755)
-	if err != nil {
-		return err
-	}
-	err = writeGadgetAttrs(hid0Path, [][]string{
-		{"protocol", "1"},
-		{"subclass", "1"},
-		{"report_length", "8"},
-	})
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(path.Join(hid0Path, "report_desc"), KeyboardReportDesc, 0644)
-	if err != nil {
-		return err
-	}
-
-	//mouse HID
-	hid1Path := path.Join(kvmGadgetPath, "functions", "hid.usb1")
-	err = os.MkdirAll(hid1Path, 0755)
-	if err != nil {
-		return err
-	}
-	err = writeGadgetAttrs(hid1Path, [][]string{
-		{"protocol", "2"},
-		{"subclass", "1"},
-		{"report_length", "6"},
-	})
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(path.Join(hid1Path, "report_desc"), CombinedMouseReportDesc, 0644)
-	if err != nil {
-		return err
-	}
-	//mass storage
-	massStoragePath := path.Join(kvmGadgetPath, "functions", "mass_storage.usb0")
-	err = os.MkdirAll(massStoragePath, 0755)
-	if err != nil {
-		return err
-	}
-
-	err = writeGadgetAttrs(massStoragePath, [][]string{
-		{"stall", "1"},
-	})
-	if err != nil {
-		return err
-	}
-	lun0Path := path.Join(massStoragePath, "lun.0")
-	err = os.MkdirAll(lun0Path, 0755)
-	if err != nil {
-		return err
-	}
-	err = writeGadgetAttrs(lun0Path, [][]string{
-		{"cdrom", "1"},
-		{"ro", "1"},
-		{"removable", "1"},
-		{"file", "\n"},
-		{"inquiry_string", "JetKVM Virtual Media"},
-	})
-	if err != nil {
-		return err
-	}
-
-	err = os.Symlink(hid0Path, path.Join(configC1Path, "hid.usb0"))
-	if err != nil {
-		return err
-	}
-
-	err = os.Symlink(hid1Path, path.Join(configC1Path, "hid.usb1"))
-	if err != nil {
-		return err
-	}
-
-	err = os.Symlink(massStoragePath, path.Join(configC1Path, "mass_storage.usb0"))
-	if err != nil {
-		return err
+	logger.Tracef("writing gadget config")
+	for key, item := range gadgetConfig {
+		// check if the item is enabled in the config
+		if !config.UsbDevices.isGadgetConfigItemEnabled(key) {
+			logger.Tracef("disabling gadget config: %s", key)
+			err = disableGadgetItemConfig(item)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		logger.Tracef("writing gadget config: %s", key)
+		err = writeGadgetItemConfig(item)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = os.WriteFile(path.Join(kvmGadgetPath, "UDC"), []byte(udc), 0644)
