@@ -121,7 +121,7 @@ export function Dialog({ onClose }: { onClose: () => void }) {
           triggerError(err instanceof Error ? err.message : String(err));
         })
         .finally(() => {
-          // We do this beacues the mounting is too fast and the UI gets choppy
+          // We do this because the mounting is too fast and the UI gets choppy
           // and the modal exit animation for like 500ms
           setTimeout(() => {
             setMountInProgress(false);
@@ -283,7 +283,7 @@ function ModeSelectionView({
 
   return (
     <div className="w-full space-y-4">
-      <div className="asnimate-fadeIn space-y-0">
+      <div className="animate-fadeIn space-y-0">
         <h2 className="text-lg font-bold leading-tight dark:text-white">
           Virtual Media Source
         </h2>
