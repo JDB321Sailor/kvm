@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"kvm/internal/usbgadget"
 	"log"
 	"os"
 	"os/exec"
@@ -518,45 +519,27 @@ func rpcIsUpdatePending() (bool, error) {
 }
 
 func rpcGetUsbEmulationState() (bool, error) {
-	_, err := os.Stat(filepath.Join("/sys/bus/platform/drivers/dwc3", udc))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("error checking USB emulation state: %w", err)
-	}
-	return true, nil
+	return gadget.IsUDCBound()
 }
 
 func rpcSetUsbEmulationState(enabled bool) error {
 	if enabled {
-		return os.WriteFile("/sys/bus/platform/drivers/dwc3/bind", []byte(udc), 0644)
+		return gadget.BindUDC()
 	} else {
-		return os.WriteFile("/sys/bus/platform/drivers/dwc3/unbind", []byte(udc), 0644)
+		return gadget.UnbindUDC()
 	}
 }
 
-func rpcGetUsbConfig() (UsbConfig, error) {
+func rpcGetUsbConfig() (usbgadget.Config, error) {
 	LoadConfig()
 	return *config.UsbConfig, nil
 }
 
-func rpcSetUsbConfig(usbConfig UsbConfig) error {
+func rpcSetUsbConfig(usbConfig usbgadget.Config) error {
 	LoadConfig()
 	config.UsbConfig = &usbConfig
-
-	err := UpdateGadgetConfig()
-	if err != nil {
-		return fmt.Errorf("failed to write gadget config: %w", err)
-	}
-
-	err = SaveConfig()
-	if err != nil {
-		return fmt.Errorf("failed to save usb config: %w", err)
-	}
-
-	log.Printf("[jsonrpc.go:rpcSetUsbConfig] usb config set to %s", usbConfig)
-	return nil
+	gadget.SetGadgetConfig(config.UsbConfig)
+	return updateUsbRelatedConfig()
 }
 
 func rpcGetWakeOnLanDevices() ([]WakeOnLanDevice, error) {
@@ -751,6 +734,43 @@ func rpcSetSerialSettings(settings SerialSettings) error {
 	return nil
 }
 
+func rpcGetUsbDevices() (usbgadget.Devices, error) {
+	return *config.UsbDevices, nil
+}
+
+func updateUsbRelatedConfig() error {
+	if err := gadget.UpdateGadgetConfig(); err != nil {
+		return fmt.Errorf("failed to write gadget config: %w", err)
+	}
+	if err := SaveConfig(); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+	return nil
+}
+
+func rpcSetUsbDevices(usbDevices usbgadget.Devices) error {
+	config.UsbDevices = &usbDevices
+	gadget.SetGadgetDevices(config.UsbDevices)
+	return updateUsbRelatedConfig()
+}
+
+func rpcSetUsbDeviceState(device string, enabled bool) error {
+	switch device {
+	case "absoluteMouse":
+		config.UsbDevices.AbsoluteMouse = enabled
+	case "relativeMouse":
+		config.UsbDevices.RelativeMouse = enabled
+	case "keyboard":
+		config.UsbDevices.Keyboard = enabled
+	case "massStorage":
+		config.UsbDevices.MassStorage = enabled
+	default:
+		return fmt.Errorf("invalid device: %s", device)
+	}
+	gadget.SetGadgetDevices(config.UsbDevices)
+	return updateUsbRelatedConfig()
+}
+
 func rpcSetCloudUrl(apiUrl string, appUrl string) error {
 	config.CloudURL = apiUrl
 	config.CloudAppURL = appUrl
@@ -831,6 +851,9 @@ var rpcHandlers = map[string]RPCHandler{
 	"setATXPowerAction":      {Func: rpcSetATXPowerAction, Params: []string{"action"}},
 	"getSerialSettings":      {Func: rpcGetSerialSettings},
 	"setSerialSettings":      {Func: rpcSetSerialSettings, Params: []string{"settings"}},
+	"getUsbDevices":          {Func: rpcGetUsbDevices},
+	"setUsbDevices":          {Func: rpcSetUsbDevices, Params: []string{"devices"}},
+	"setUsbDeviceState":      {Func: rpcSetUsbDeviceState, Params: []string{"device", "enabled"}},
 	"setCloudUrl":            {Func: rpcSetCloudUrl, Params: []string{"apiUrl", "appUrl"}},
 	"getScrollSensitivity":   {Func: rpcGetScrollSensitivity},
 	"setScrollSensitivity":   {Func: rpcSetScrollSensitivity, Params: []string{"sensitivity"}},
