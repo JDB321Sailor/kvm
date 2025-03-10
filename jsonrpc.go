@@ -762,6 +762,17 @@ func rpcSetCloudUrl(apiUrl string, appUrl string) error {
 	return nil
 }
 
+var currentScrollSensitivity string = "default"
+
+func rpcGetScrollSensitivity() (string, error) {
+	return currentScrollSensitivity, nil
+}
+
+func rpcSetScrollSensitivity(sensitivity string) error {
+	currentScrollSensitivity = sensitivity
+	return nil
+}
+
 var rpcHandlers = map[string]RPCHandler{
 	"ping":                   {Func: rpcPing},
 	"getDeviceID":            {Func: rpcGetDeviceID},
@@ -821,4 +832,6 @@ var rpcHandlers = map[string]RPCHandler{
 	"getSerialSettings":      {Func: rpcGetSerialSettings},
 	"setSerialSettings":      {Func: rpcSetSerialSettings, Params: []string{"settings"}},
 	"setCloudUrl":            {Func: rpcSetCloudUrl, Params: []string{"apiUrl", "appUrl"}},
+	"getScrollSensitivity":   {Func: rpcGetScrollSensitivity},
+	"setScrollSensitivity":   {Func: rpcSetScrollSensitivity, Params: []string{"sensitivity"}},
 }
