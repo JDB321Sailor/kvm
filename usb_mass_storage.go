@@ -58,7 +58,7 @@ func setMassStorageMode(cdrom bool) error {
 }
 
 func onDiskMessage(msg webrtc.DataChannelMessage) {
-	fmt.Println("Disk Message, len:", len(msg.Data))
+	logger.Infof("Disk Message, len: %d", len(msg.Data))
 	diskReadChan <- msg.Data
 }
 
@@ -176,7 +176,7 @@ func rpcUnmountImage() error {
 	defer virtualMediaStateMutex.Unlock()
 	err := setMassStorageImage("\n")
 	if err != nil {
-		fmt.Println("Remove Mass Storage Image Error", err)
+		logger.Warnf("Remove Mass Storage Image Error: %v", err)
 	}
 	//TODO: check if we still need it
 	time.Sleep(500 * time.Millisecond)
