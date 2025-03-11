@@ -2,7 +2,6 @@ package kvm
 
 import (
 	"kvm/internal/usbgadget"
-	"log"
 	"time"
 )
 
@@ -51,7 +50,7 @@ func rpcGetUSBState() (state string) {
 func triggerUSBStateUpdate() {
 	go func() {
 		if currentSession == nil {
-			log.Println("No active RPC session, skipping update state update")
+			logger.Info("No active RPC session, skipping update state update")
 			return
 		}
 		writeJSONRPCEvent("usbState", usbState, currentSession)
