@@ -1,7 +1,7 @@
 package kvm
 
 import (
-	"kvm/internal/usbgadget"
+	"github.com/jetkvm/kvm/internal/usbgadget"
 	"time"
 )
 
@@ -35,10 +35,6 @@ func rpcAbsMouseReport(x, y int, buttons uint8) error {
 
 func rpcWheelReport(wheelY int8) error {
 	return gadget.AbsMouseWheelReport(wheelY)
-}
-
-func rpcRelMouseReport(mx, my int8, buttons uint8) error {
-	return gadget.RelMouseReport(mx, my, buttons)
 }
 
 var usbState = "unknown"

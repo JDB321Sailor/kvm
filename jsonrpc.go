@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"kvm/internal/usbgadget"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,8 @@ import (
 
 	"github.com/pion/webrtc/v4"
 	"go.bug.st/serial"
+
+	"github.com/jetkvm/kvm/internal/usbgadget"
 )
 
 type JSONRPCRequest struct {

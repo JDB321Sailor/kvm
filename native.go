@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"kvm/resource"
 	"net"
 	"os"
 	"os/exec"
