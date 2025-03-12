@@ -142,7 +142,7 @@ func (d *NBDDevice) runClientConn() {
 		ExportName: "jetkvm",
 		BlockSize:  uint32(4 * 1024),
 	})
-	logger.Infof("nbd client exited: %w", err)
+	logger.Infof("nbd client exited: %v", err)
 }
 
 func (d *NBDDevice) Close() {
