@@ -3,9 +3,10 @@ package kvm
 import (
 	"encoding/json"
 	"fmt"
-	"kvm/internal/usbgadget"
 	"os"
 	"sync"
+
+	"github.com/jetkvm/kvm/internal/usbgadget"
 )
 
 type WakeOnLanDevice struct {

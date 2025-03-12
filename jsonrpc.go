@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"kvm/internal/usbgadget"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,8 @@ import (
 
 	"github.com/pion/webrtc/v4"
 	"go.bug.st/serial"
+
+	"github.com/jetkvm/kvm/internal/usbgadget"
 )
 
 type JSONRPCRequest struct {
@@ -195,8 +196,7 @@ func rpcSetEDID(edid string) error {
 
 	// Save EDID to config, allowing it to be restored on reboot.
 	config.EdidString = edid
-	SaveConfig()
-
+	_ = SaveConfig()
 	return nil
 }
 
@@ -596,18 +596,18 @@ func rpcSetActiveExtension(extensionId string) error {
 		return nil
 	}
 	if config.ActiveExtension == "atx-power" {
-		unmountATXControl()
+		_ = unmountATXControl()
 	} else if config.ActiveExtension == "dc-power" {
-		unmountDCControl()
+		_ = unmountDCControl()
 	}
 	config.ActiveExtension = extensionId
 	if err := SaveConfig(); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	if extensionId == "atx-power" {
-		mountATXControl()
+		_ = mountATXControl()
 	} else if extensionId == "dc-power" {
-		mountDCControl()
+		_ = mountDCControl()
 	}
 	return nil
 }
@@ -728,7 +728,7 @@ func rpcSetSerialSettings(settings SerialSettings) error {
 		Parity:   parity,
 	}
 
-	port.SetMode(serialPortMode)
+	_ = port.SetMode(serialPortMode)
 
 	return nil
 }
