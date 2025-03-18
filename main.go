@@ -2,7 +2,6 @@ package kvm
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -46,11 +45,13 @@ func Main() {
 		}
 	}()
 
+	initUsbGadget()
+
 	go func() {
 		time.Sleep(15 * time.Minute)
 		for {
 			logger.Debugf("UPDATING - Auto update enabled: %v", config.AutoUpdateEnabled)
-			if config.AutoUpdateEnabled == false {
+			if !config.AutoUpdateEnabled {
 				return
 			}
 			if currentSession != nil {
@@ -80,15 +81,15 @@ func Main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
-	log.Println("JetKVM Shutting Down")
+	logger.Info("JetKVM Shutting Down")
 	//if fuseServer != nil {
 	//	err := setMassStorageImage(" ")
 	//	if err != nil {
-	//		log.Printf("Failed to unmount mass storage image: %v", err)
+	//		logger.Infof("Failed to unmount mass storage image: %v", err)
 	//	}
 	//	err = fuseServer.Unmount()
 	//	if err != nil {
-	//		log.Printf("Failed to unmount fuse: %v", err)
+	//		logger.Infof("Failed to unmount fuse: %v", err)
 	//	}
 
 	// os.Exit(0)

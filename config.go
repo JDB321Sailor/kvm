@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+	"github.com/jetkvm/kvm/internal/usbgadget"
 )
 
 type WakeOnLanDevice struct {
@@ -12,33 +14,26 @@ type WakeOnLanDevice struct {
 	MacAddress string `json:"macAddress"`
 }
 
-type UsbConfig struct {
-	VendorId     string `json:"vendor_id"`
-	ProductId    string `json:"product_id"`
-	SerialNumber string `json:"serial_number"`
-	Manufacturer string `json:"manufacturer"`
-	Product      string `json:"product"`
-}
-
 type Config struct {
-	CloudURL             string            `json:"cloud_url"`
-	CloudAppURL          string            `json:"cloud_app_url"`
-	CloudToken           string            `json:"cloud_token"`
-	GoogleIdentity       string            `json:"google_identity"`
-	JigglerEnabled       bool              `json:"jiggler_enabled"`
-	AutoUpdateEnabled    bool              `json:"auto_update_enabled"`
-	IncludePreRelease    bool              `json:"include_pre_release"`
-	HashedPassword       string            `json:"hashed_password"`
-	LocalAuthToken       string            `json:"local_auth_token"`
-	LocalAuthMode        string            `json:"localAuthMode"` //TODO: fix it with migration
-	WakeOnLanDevices     []WakeOnLanDevice `json:"wake_on_lan_devices"`
-	EdidString           string            `json:"hdmi_edid_string"`
-	ActiveExtension      string            `json:"active_extension"`
-	DisplayMaxBrightness int               `json:"display_max_brightness"`
-	DisplayDimAfterSec   int               `json:"display_dim_after_sec"`
-	DisplayOffAfterSec   int               `json:"display_off_after_sec"`
-	TLSMode              string            `json:"tls_mode"`
-	UsbConfig            *UsbConfig        `json:"usb_config"`
+	CloudURL             string             `json:"cloud_url"`
+	CloudAppURL          string             `json:"cloud_app_url"`
+	CloudToken           string             `json:"cloud_token"`
+	GoogleIdentity       string             `json:"google_identity"`
+	JigglerEnabled       bool               `json:"jiggler_enabled"`
+	AutoUpdateEnabled    bool               `json:"auto_update_enabled"`
+	IncludePreRelease    bool               `json:"include_pre_release"`
+	HashedPassword       string             `json:"hashed_password"`
+	LocalAuthToken       string             `json:"local_auth_token"`
+	LocalAuthMode        string             `json:"localAuthMode"` //TODO: fix it with migration
+	WakeOnLanDevices     []WakeOnLanDevice  `json:"wake_on_lan_devices"`
+	EdidString           string             `json:"hdmi_edid_string"`
+	ActiveExtension      string             `json:"active_extension"`
+	DisplayMaxBrightness int                `json:"display_max_brightness"`
+	DisplayDimAfterSec   int                `json:"display_dim_after_sec"`
+	DisplayOffAfterSec   int                `json:"display_off_after_sec"`
+	TLSMode              string             `json:"tls_mode"`
+	UsbConfig            *usbgadget.Config  `json:"usb_config"`
+	UsbDevices           *usbgadget.Devices `json:"usb_devices"`
 }
 
 const configPath = "/userdata/kvm_config.json"
@@ -52,12 +47,18 @@ var defaultConfig = &Config{
 	DisplayDimAfterSec:   120,  // 2 minutes
 	DisplayOffAfterSec:   1800, // 30 minutes
 	TLSMode:              "",
-	UsbConfig: &UsbConfig{
+	UsbConfig: &usbgadget.Config{
 		VendorId:     "0x1d6b", //The Linux Foundation
 		ProductId:    "0x0104", //Multifunction Composite Gadget
 		SerialNumber: "",
 		Manufacturer: "JetKVM",
 		Product:      "USB Emulation Device",
+	},
+	UsbDevices: &usbgadget.Devices{
+		AbsoluteMouse: true,
+		RelativeMouse: true,
+		Keyboard:      true,
+		MassStorage:   true,
 	},
 }
 
@@ -95,6 +96,10 @@ func LoadConfig() {
 	// merge the user config with the default config
 	if loadedConfig.UsbConfig == nil {
 		loadedConfig.UsbConfig = defaultConfig.UsbConfig
+	}
+
+	if loadedConfig.UsbDevices == nil {
+		loadedConfig.UsbDevices = defaultConfig.UsbDevices
 	}
 
 	config = &loadedConfig
