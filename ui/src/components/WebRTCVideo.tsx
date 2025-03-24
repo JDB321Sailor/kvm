@@ -47,7 +47,7 @@ export default function WebRTCVideo() {
   const hdmiState = useVideoStore(state => state.hdmiState);
   const hdmiError = ["no_lock", "no_signal", "out_of_range"].includes(hdmiState);
   const isLoading = !hdmiError && !isPlaying;
-  const isConnectionError = ["error", "failed", "disconnected"].includes(
+  const isConnectionError = ["error", "failed", "disconnected", "closed"].includes(
     peerConnectionState || "",
   );
 
