@@ -94,9 +94,20 @@ var nbdDevice *NBDDevice
 
 const imagesFolder = "/userdata/jetkvm/images"
 
+func initImagesFolder() error {
+	err := os.MkdirAll(imagesFolder, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create images folder: %w", err)
+	}
+	return nil
+}
+
 func rpcMountBuiltInImage(filename string) error {
 	logger.Info().Str("filename", filename).Msg("Mount Built-In Image")
-	_ = os.MkdirAll(imagesFolder, 0755)
+	if err := initImagesFolder(); err != nil {
+		return err
+	}
+
 	imagePath := filepath.Join(imagesFolder, filename)
 
 	// Check if the file exists in the imagesFolder
@@ -224,13 +235,14 @@ func getInitialVirtualMediaState() (*VirtualMediaState, error) {
 	}
 
 	// TODO: check if it's WebRTC or HTTP
-	if diskPath == "" {
+	switch diskPath {
+	case "":
 		return nil, nil
-	} else if diskPath == "/dev/nbd0" {
+	case "/dev/nbd0":
 		initialState.Source = HTTP
 		initialState.URL = "/"
 		initialState.Size = 1
-	} else {
+	default:
 		initialState.Filename = filepath.Base(diskPath)
 		// get size from file
 		logger.Info().Str("diskPath", diskPath).Msg("getting file size")
