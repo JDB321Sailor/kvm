@@ -86,16 +86,21 @@ export const keys = {
   NumpadAdd: 0x57,
   NumpadDivide: 0x54,
   NumpadEnter: 0x58,
+  NumpadEqual: 0x67,
   NumpadMultiply: 0x55,
   NumpadSubtract: 0x56,
   NumpadDecimal: 0x63,
   PageDown: 0x4e,
   PageUp: 0x4b,
   Period: 0x37,
+  PrintScreen: 0x46,
+  Pause: 0x48,
   Quote: 0x34,
+  ScrollLock: 0x47,
   Semicolon: 0x33,
   Slash: 0x38,
   Space: 0x2c,
+  SystemRequest: 0x9a,
   Tab: 0x2b,
 } as Record<string, number>;
 
@@ -200,6 +205,13 @@ export const chars = {
   "\n": { key: "Enter", shift: false },
   Enter: { key: "Enter", shift: false },
   Tab: { key: "Tab", shift: false },
+  PrintScreen: { key: "Prt Sc", shift: false },
+  SystemRequest: { key: "Prt Sc", shift: true },
+  ScrollLock: { key: "ScrollLock", shift: false},
+  Pause: { key: "Pause", shift: false },
+  Break: { key: "Pause", shift: true },
+  Insert: { key: "Insert", shift: false },
+  Delete: { key: "Delete", shift: false },
 } as Record<string, { key: string | number; shift: boolean }>;
 
 export const modifiers = {
@@ -227,6 +239,7 @@ export const modifierDisplayMap: Record<string, string> = {
 export const keyDisplayMap: Record<string, string> = {
   CtrlAltDelete: "Ctrl + Alt + Delete",
   AltMetaEscape: "Alt + Meta + Escape",
+  CtrlAltBackspace: "Ctrl + Alt + Backspace",
   Escape: "esc",
   Tab: "tab",
   Backspace: "backspace",
@@ -240,11 +253,12 @@ export const keyDisplayMap: Record<string, string> = {
   MetaLeft: "meta",
   MetaRight: "meta",
   Space: " ",
+  Insert: "insert",
   Home: "home",
-  PageUp: "pageup",
+  PageUp: "page up",
   Delete: "delete",
   End: "end",
-  PageDown: "pagedown",
+  PageDown: "page down",
   ArrowLeft: "←",
   ArrowRight: "→",
   ArrowUp: "↑",
@@ -258,22 +272,45 @@ export const keyDisplayMap: Record<string, string> = {
   KeyU: "u", KeyV: "v", KeyW: "w", KeyX: "x", KeyY: "y",
   KeyZ: "z",
 
+  // Capital letters
+  "(KeyA)": "A", "(KeyB)": "B", "(KeyC)": "C", "(KeyD)": "D", "(KeyE)": "E",
+  "(KeyF)": "F", "(KeyG)": "G", "(KeyH)": "H", "(KeyI)": "I", "(KeyJ)": "J",
+  "(KeyK)": "K", "(KeyL)": "L", "(KeyM)": "M", "(KeyN)": "N", "(KeyO)": "O",
+  "(KeyP)": "P", "(KeyQ)": "Q", "(KeyR)": "R", "(KeyS)": "S", "(KeyT)": "T",
+  "(KeyU)": "U", "(KeyV)": "V", "(KeyW)": "W", "(KeyX)": "X", "(KeyY)": "Y",
+  "(KeyZ)": "Z",
+
   // Numbers
   Digit1: "1", Digit2: "2", Digit3: "3", Digit4: "4", Digit5: "5",
   Digit6: "6", Digit7: "7", Digit8: "8", Digit9: "9", Digit0: "0",
 
+  // Shifted Numbers
+  "(Digit1)": "!", "(Digit2)": "@", "(Digit3)": "#", "(Digit4)": "$", "(Digit5)": "%",
+  "(Digit6)": "^", "(Digit7)": "&", "(Digit8)": "*", "(Digit9)": "(", "(Digit0)": ")",
+
   // Symbols
   Minus: "-",
+  "(Minus)": "_",
   Equal: "=",
+  "(Equal)": "+",
   BracketLeft: "[",
+   "(BracketLeft)": "{",
   BracketRight: "]",
+  "(BracketRight)": "}",
   Backslash: "\\",
+  "(Backslash)": "|",
   Semicolon: ";",
+  "(Semicolon)": ":",
   Quote: "'",
+  "(Quote)": "\"",
   Comma: ",",
+  "(Comma)": "<",
   Period: ".",
+  "(Period)": ">",
   Slash: "/",
+  "(Slash)": "?",
   Backquote: "`",
+  "(Backquote)": "~",
   IntlBackslash: "\\",
 
   // Function keys
@@ -287,5 +324,11 @@ export const keyDisplayMap: Record<string, string> = {
   Numpad6: "Num 6", Numpad7: "Num 7", Numpad8: "Num 8",
   Numpad9: "Num 9", NumpadAdd: "Num +", NumpadSubtract: "Num -",
   NumpadMultiply: "Num *", NumpadDivide: "Num /", NumpadDecimal: "Num .",
-  NumpadEnter: "Num Enter"
+  NumpadEqual: "Num =", NumpadEnter: "Num Enter",
+  NumLock: "Num Lock",
+
+  // Modals
+  PrintScreen: "prt sc", ScrollLock: "scr lk", Pause: "pause",
+  "(PrintScreen)": "sys rq", "(Pause)": "break",
+  SystemRequest: "sys rq", Break: "break"
 };
