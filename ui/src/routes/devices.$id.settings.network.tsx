@@ -14,15 +14,14 @@ import {
   useNetworkStateStore,
 } from "@/hooks/stores";
 import { useJsonRpc } from "@/hooks/useJsonRpc";
-import notifications from "@/notifications";
 import { Button } from "@components/Button";
 import { GridCard } from "@components/Card";
 import InputField from "@components/InputField";
-
-import { SettingsPageHeader } from "../components/SettingsPageheader";
-import { SelectMenuBasic } from "../components/SelectMenuBasic";
-import Fieldset from "../components/Fieldset";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { SelectMenuBasic } from "@/components/SelectMenuBasic";
+import { SettingsPageHeader } from "@/components/SettingsPageheader";
+import Fieldset from "@/components/Fieldset";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import notifications from "@/notifications";
 
 import { SettingsItem } from "./devices.$id.settings";
 
@@ -51,9 +50,13 @@ export function LifeTimeLabel({ lifetime }: { lifetime: string }) {
     return () => clearInterval(interval);
   }, [lifetime]);
 
+  if (lifetime == "") {
+    return <strong>N/A</strong>;
+  }
+
   return (
     <>
-      <span>{dayjs(lifetime).format("YYYY-MM-DD HH:mm")}</span>
+      <strong>{dayjs(lifetime).format("YYYY-MM-DD HH:mm")}</strong>
       {remaining && (
         <>
           {" "}
