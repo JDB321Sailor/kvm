@@ -38,7 +38,7 @@ jobs:
       - name: Golang Test Report
         uses: becheran/go-testreport@v0.3.2
         with:
-          output: "testreport.json"
+          input: "testreport.json"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
