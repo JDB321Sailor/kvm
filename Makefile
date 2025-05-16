@@ -15,6 +15,8 @@ GO_LDFLAGS := \
   -X $(PROMETHEUS_TAG).Revision=$(REVISION) \
   -X $(KVM_PKG_NAME).builtTimestamp=$(BUILDTS)
 
+TEST_DIRS := $(shell find . -name "*_test.go" -type f -exec dirname {} \; | sort -u)
+
 hash_resource:
 	@shasum -a 256 resource/jetkvm_native | cut -d ' ' -f 1 > resource/jetkvm_native.sha256
 
@@ -29,16 +31,17 @@ build_dev_test: build_test2json
 # collect all directories that contain tests
 	@echo "Building tests for devices ..."
 	@rm -rf bin/tests && mkdir -p bin/tests
-	GOOS=linux GOARCH=arm GOARM=7 \
-		go test -v \
-		-ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION_DEV)" \
-		-c -o bin/tests ./...; \
 
 	@cat resource/dev_test.sh > bin/tests/run_all_tests
-	@for test in bin/tests/*.test; do \
-		chmod +x $$test; \
-		base_name=$$(basename $$test); \
-		echo "runTest ./$$base_name" >> bin/tests/run_all_tests; \
+	@for test in $(TEST_DIRS); do \
+		test_pkg_name=$$(echo $$test | sed 's/^.\///g'); \
+		test_pkg_full_name=$(KVM_PKG_NAME)/$$(echo $$test | sed 's/^.\///g'); \
+		test_filename=$$(echo $$test_pkg_name | sed 's/\//__/g')_test; \
+		GOOS=linux GOARCH=arm GOARM=7 \
+			go test -v \
+			-ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION_DEV)" \
+			-c -o bin/tests/$$test_filename $$test; \
+		echo "runTest ./$$test_filename $$test_pkg_full_name" >> bin/tests/run_all_tests; \
 	done; \
 	chmod +x bin/tests/run_all_tests; \
 	cp bin/test2json bin/tests/; \

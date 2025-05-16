@@ -1,5 +1,6 @@
 #!/bin/sh
 JSON_OUTPUT=false
+GET_COMMANDS=false
 if [ "$1" = "-json" ]; then
     JSON_OUTPUT=true
     shift
@@ -8,8 +9,12 @@ ADDITIONAL_ARGS=$@
 EXIT_CODE=0
 
 runTest() {
+    PKG_ARGS=""
+    if [ "$2" != "" ]; then
+        PKG_ARGS="-p $2"
+    fi
     if [ "$JSON_OUTPUT" = true ]; then
-        ./test2json $1 -test.v $ADDITIONAL_ARGS | tee $1.result.json
+        ./test2json $PKG_ARGS -t $1 -test.v $ADDITIONAL_ARGS | tee $1.result.json
         if [ $? -ne 0 ]; then
             EXIT_CODE=1
         fi
@@ -20,7 +25,6 @@ runTest() {
         fi
     fi
 }
-
 
 function exit_with_code() {
     if [ $EXIT_CODE -ne 0 ]; then

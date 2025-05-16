@@ -41,7 +41,7 @@ SKIP_UI_BUILD=false
 RESET_USB_HID_DEVICE=false
 LOG_TRACE_SCOPES="${LOG_TRACE_SCOPES:-jetkvm,cloud,websocket,native,jsonrpc}"
 RUN_GO_TESTS=false
-
+RUN_GO_TESTS_JSON=false
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -65,6 +65,10 @@ while [[ $# -gt 0 ]]; do
             RUN_GO_TESTS=true
             shift
             ;;
+        --run-go-tests-json)
+            RUN_GO_TESTS_JSON=true
+            shift
+            ;;
         --help)
             show_help
             exit 0
@@ -76,6 +80,10 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [ "$RUN_GO_TESTS_JSON" = true ]; then
+    RUN_GO_TESTS=true
+fi
 
 # Verify required parameters
 if [ -z "$REMOTE_HOST" ]; then
@@ -101,11 +109,15 @@ if [ "$RUN_GO_TESTS" = true ]; then
     ssh "${REMOTE_USER}@${REMOTE_HOST}" "cat > ${REMOTE_PATH}/device-tests.tar.gz" < device-tests.tar.gz
 
     msg_info "▶ Running go tests"
+    TEST_ARGS=""
+    if [ "$RUN_GO_TESTS_JSON" = true ]; then
+        TEST_ARGS="-json"
+    fi
     ssh "${REMOTE_USER}@${REMOTE_HOST}" ash << EOF
 set -e
 cd ${REMOTE_PATH}
 tar zxvf device-tests.tar.gz
-./run_all_tests -test.v
+./run_all_tests $TEST_ARGS
 EOF
 fi
 
@@ -113,7 +125,7 @@ fi
 ssh "${REMOTE_USER}@${REMOTE_HOST}" "killall jetkvm_app_debug || true"
 
 # Copy the binary to the remote host
-ssh "${REMOTE_USER}@${REMOTE_HOST}" "cat > ${REMOTE_PATH}/jetkvm_app_debug" < jetkvm_app_debug
+ssh "${REMOTE_USER}@${REMOTE_HOST}" "cat > ${REMOTE_PATH}/jetkvm_app_debug" < bin/jetkvm_app
 
 if [ "$RESET_USB_HID_DEVICE" = true ]; then
     # Remove the old USB gadget configuration
