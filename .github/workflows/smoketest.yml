@@ -116,7 +116,7 @@ jobs:
           set -e
           # Copy the binary to the remote host
           echo "+ Copying the application to the remote host"
-          cat jetkvm_app | gzip | ssh jkci "cat > /userdata/jetkvm/jetkvm_app.update.gz"
+          cat bin/jetkvm_app | gzip | ssh jkci "cat > /userdata/jetkvm/jetkvm_app.update.gz"
           # Deploy and run the application on the remote host
           echo "+ Deploying the application on the remote host"
           ssh jkci ash <<EOF
