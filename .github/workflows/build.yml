@@ -35,6 +35,9 @@ jobs:
       - name: Run tests
         run: |
           go test ./... -json > testreport.json
+      - name: Make test cases
+        run: |
+          make build_dev_test
       - name: Golang Test Report
         uses: becheran/go-testreport@v0.3.2
         with:
@@ -43,4 +46,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jetkvm-app
-          path: bin/jetkvm_app
+          path: |
+            bin/jetkvm_app
+            device-tests.tar.gz
