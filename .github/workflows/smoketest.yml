@@ -69,18 +69,9 @@ jobs:
           CI_USER: ${{ vars.JETKVM_CI_USER }}
           CI_HOST: ${{ vars.JETKVM_CI_HOST }}
           CI_SSH_PRIVATE: ${{ secrets.JETKVM_CI_SSH_PRIVATE }}
-      - name: Checkout Makefile
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            Makefile
-            resource/dev_test.sh
-            bin/.gitkeep
       - name: Run tests
         run: |
           set -e
-          make build_dev_test  
-
           echo "+ Copying device-tests.tar.gz to remote host"
           ssh jkci "cat > /tmp/device-tests.tar.gz" < device-tests.tar.gz
           echo "+ Running go tests"
@@ -112,6 +103,10 @@ jobs:
           rm -rf ${TMP_DIR} /tmp/device-tests.tar.gz
           EOF
           ssh jkci "cat /tmp/device-tests.json" > device-tests.json
+      - name: Set up Golang
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.24.0"
       - name: Golang Test Report
         uses: becheran/go-testreport@v0.3.2
         with:
