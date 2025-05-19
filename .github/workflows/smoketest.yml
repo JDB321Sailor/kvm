@@ -69,6 +69,13 @@ jobs:
           CI_USER: ${{ vars.JETKVM_CI_USER }}
           CI_HOST: ${{ vars.JETKVM_CI_HOST }}
           CI_SSH_PRIVATE: ${{ secrets.JETKVM_CI_SSH_PRIVATE }}
+      - name: Checkout Makefile
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            Makefile
+            resource/dev_test.sh
+            bin/.gitkeep
       - name: Run tests
         run: |
           set -e
