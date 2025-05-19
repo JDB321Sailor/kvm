@@ -48,6 +48,11 @@ func (c *ChangeSetResolver) doResolveChanges(initial bool) error {
 
 	for _, key := range c.orderedChanges {
 		change := c.changesMap[key.(string)]
+		if change == nil {
+			c.l.Error().Str("key", key.(string)).Msg("fileChange not found")
+			continue
+		}
+
 		if !initial {
 			change.ResetActionResolution()
 		}
@@ -123,7 +128,11 @@ func (c *ChangeSetResolver) applyChanges() error {
 
 		err := c.changeset.applyChange(change)
 		if err != nil {
-			return err
+			if change.IgnoreErrors {
+				c.l.Warn().Str("change", change.String()).Err(err).Msg("ignoring error")
+			} else {
+				return err
+			}
 		}
 	}
 
