@@ -66,7 +66,10 @@ dev_release: frontend build_dev
 
 build_release: frontend hash_resource
 	@echo "Building release..."
-	$(GO_CMD) build -ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION)" -o bin/jetkvm_app cmd/main.go
+	$(GO_CMD) build \
+		-ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION)" \
+		-trimpath \
+		-o bin/jetkvm_app cmd/main.go
 
 release:
 	@if rclone lsf r2://jetkvm-update/app/$(VERSION)/ | grep -q "jetkvm_app"; then \
