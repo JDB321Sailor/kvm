@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { ArrowPathIcon } from "@heroicons/react/24/outline";
+import { LuEthernetPort } from "react-icons/lu";
 
 import {
   IPv4Mode,
@@ -16,12 +16,17 @@ import {
 import { useJsonRpc } from "@/hooks/useJsonRpc";
 import { Button } from "@components/Button";
 import { GridCard } from "@components/Card";
-import InputField from "@components/InputField";
+import InputField, { InputFieldWithLabel } from "@components/InputField";
 import { SelectMenuBasic } from "@/components/SelectMenuBasic";
 import { SettingsPageHeader } from "@/components/SettingsPageheader";
 import Fieldset from "@/components/Fieldset";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import notifications from "@/notifications";
+
+import Ipv6NetworkCard from "../components/Ipv6NetworkCard";
+import EmptyCard from "../components/EmptyCard";
+import AutoHeight from "../components/AutoHeight";
+import DhcpLeaseCard from "../components/DhcpLeaseCard";
 
 import { SettingsItem } from "./devices.$id.settings";
 
@@ -56,15 +61,11 @@ export function LifeTimeLabel({ lifetime }: { lifetime: string }) {
 
   return (
     <>
-      <strong>{dayjs(lifetime).format("YYYY-MM-DD HH:mm")}</strong>
-      {remaining && (
-        <>
-          {" "}
-          <span className="text-xs text-slate-700 dark:text-slate-300">
-            ({remaining})
-          </span>
-        </>
-      )}
+      <span className="text-sm font-medium">{remaining && <> {remaining}</>}</span>
+      <span className="text-xs text-slate-700 dark:text-slate-300">
+        {" "}
+        ({dayjs(lifetime).format("YYYY-MM-DD HH:mm")})
+      </span>
     </>
   );
 }
@@ -114,6 +115,14 @@ export default function SettingsNetworkRoute() {
     });
   }, [send]);
 
+  const getNetworkState = useCallback(() => {
+    send("getNetworkState", {}, resp => {
+      if ("error" in resp) return;
+      console.log(resp.result);
+      setNetworkState(resp.result as NetworkState);
+    });
+  }, [send, setNetworkState]);
+
   const setNetworkSettingsRemote = useCallback(
     (settings: NetworkSettings) => {
       setNetworkSettingsLoaded(false);
@@ -129,20 +138,13 @@ export default function SettingsNetworkRoute() {
         // We need to update the firstNetworkSettings ref to the new settings so we can use it to determine if the settings have changed
         firstNetworkSettings.current = resp.result as NetworkSettings;
         setNetworkSettings(resp.result as NetworkSettings);
+        getNetworkState();
         setNetworkSettingsLoaded(true);
         notifications.success("Network settings saved");
       });
     },
-    [send],
+    [getNetworkState, send],
   );
-
-  const getNetworkState = useCallback(() => {
-    send("getNetworkState", {}, resp => {
-      if ("error" in resp) return;
-      console.log(resp.result);
-      setNetworkState(resp.result as NetworkState);
-    });
-  }, [send, setNetworkState]);
 
   const handleRenewLease = useCallback(() => {
     send("renewDHCPLease", {}, resp => {
@@ -170,10 +172,6 @@ export default function SettingsNetworkRoute() {
   const handleLldpModeChange = (value: LLDPMode | string) => {
     setNetworkSettings({ ...networkSettings, lldp_mode: value as LLDPMode });
   };
-
-  // const handleLldpTxTlvsChange = (value: string[]) => {
-  //   setNetworkSettings({ ...networkSettings, lldp_tx_tlvs: value });
-  // };
 
   const handleMdnsModeChange = (value: mDNSMode | string) => {
     setNetworkSettings({ ...networkSettings, mdns_mode: value as mDNSMode });
@@ -258,7 +256,7 @@ export default function SettingsNetworkRoute() {
         </div>
 
         <div className="space-y-4">
-          <div className="space-y-4">
+          <div className="space-y-1">
             <SettingsItem
               title="Domain"
               description="Network domain suffix for the device"
@@ -277,19 +275,17 @@ export default function SettingsNetworkRoute() {
               </div>
             </SettingsItem>
             {selectedDomainOption === "custom" && (
-              <div className="flex items-center justify-between gap-x-2">
-                <InputField
+              <div className="mt-2 w-1/3 border-l border-slate-800/10 pl-4 dark:border-slate-300/20">
+                <InputFieldWithLabel
                   size="SM"
                   type="text"
+                  label="Custom Domain"
                   placeholder="home"
                   value={customDomain}
-                  onChange={e => setCustomDomain(e.target.value)}
-                />
-                <Button
-                  size="SM"
-                  theme="primary"
-                  text="Save Domain"
-                  onClick={() => handleCustomDomainChange(customDomain)}
+                  onChange={e => {
+                    setCustomDomain(e.target.value);
+                    handleCustomDomainChange(e.target.value);
+                  }}
                 />
               </div>
             )}
@@ -359,209 +355,35 @@ export default function SettingsNetworkRoute() {
               ])}
             />
           </SettingsItem>
-          {networkState?.dhcp_lease && (
-            <GridCard>
-              <div className="p-4">
-                <div className="space-y-4">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    DHCP Lease
-                  </h3>
-
-                  <div className="flex gap-x-6 gap-y-2">
-                    <div className="flex-1 space-y-2">
-                      {networkState?.dhcp_lease?.ip && (
-                        <div className="flex justify-between border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            IP Address
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.ip}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.netmask && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Subnet Mask
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.netmask}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.dns && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            DNS Servers
-                          </span>
-                          <span className="text-right text-sm font-medium">
-                            {networkState?.dhcp_lease?.dns.map(dns => (
-                              <div key={dns}>{dns}</div>
-                            ))}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.broadcast && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Broadcast
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.broadcast}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.domain && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Domain
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.domain}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.ntp_servers &&
-                        networkState?.dhcp_lease?.ntp_servers.length > 0 && (
-                          <div className="flex justify-between gap-x-8 border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                            <div className="w-full grow text-sm text-slate-600 dark:text-slate-400">
-                              NTP Servers
-                            </div>
-                            <div className="shrink text-right text-sm font-medium">
-                              {networkState?.dhcp_lease?.ntp_servers.map(server => (
-                                <div key={server}>{server}</div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      {networkState?.dhcp_lease?.hostname && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Hostname
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.hostname}
-                          </span>
-                        </div>
-                      )}
+          <AutoHeight>
+            {!networkSettingsLoaded ? (
+              <GridCard>
+                <div className="p-4">
+                  <div className="space-y-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      DHCP Lease Information
+                    </h3>
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
+                      <div className="h-4 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
+                      <div className="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
                     </div>
-
-                    <div className="flex-1 space-y-2">
-                      {networkState?.dhcp_lease?.routers &&
-                        networkState?.dhcp_lease?.routers.length > 0 && (
-                          <div className="flex justify-between pt-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">
-                              Gateway
-                            </span>
-                            <span className="text-right text-sm font-medium">
-                              {networkState?.dhcp_lease?.routers.map(router => (
-                                <div key={router}>{router}</div>
-                              ))}
-                            </span>
-                          </div>
-                        )}
-
-                      {networkState?.dhcp_lease?.server_id && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            DHCP Server
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.server_id}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.lease_expiry && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Lease Expires
-                          </span>
-                          <span className="text-sm font-medium">
-                            <LifeTimeLabel
-                              lifetime={`${networkState?.dhcp_lease?.lease_expiry}`}
-                            />
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.mtu && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            MTU
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.mtu}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.ttl && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            TTL
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.ttl}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.bootp_next_server && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Boot Next Server
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.bootp_next_server}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.bootp_server_name && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Boot Server Name
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.bootp_server_name}
-                          </span>
-                        </div>
-                      )}
-
-                      {networkState?.dhcp_lease?.bootp_file && (
-                        <div className="flex justify-between border-t border-slate-800/10 pt-2 dark:border-slate-300/20">
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            Boot File
-                          </span>
-                          <span className="text-sm font-medium">
-                            {networkState?.dhcp_lease?.bootp_file}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Button
-                      size="SM"
-                      theme="light"
-                      className="text-red-500"
-                      text="Renew DHCP Lease"
-                      LeadingIcon={ArrowPathIcon}
-                      onClick={() => setShowRenewLeaseConfirm(true)}
-                    />
                   </div>
                 </div>
-              </div>
-            </GridCard>
-          )}
+              </GridCard>
+            ) : networkState?.dhcp_lease && networkState.dhcp_lease.ip ? (
+              <DhcpLeaseCard
+                networkState={networkState}
+                setShowRenewLeaseConfirm={setShowRenewLeaseConfirm}
+              />
+            ) : (
+              <EmptyCard
+                IconElm={LuEthernetPort}
+                headline="DHCP Information"
+                description="No DHCP lease information available"
+              />
+            )}
+          </AutoHeight>
         </div>
         <div className="space-y-4">
           <SettingsItem title="IPv6 Mode" description="Configure the IPv6 mode">
@@ -579,93 +401,32 @@ export default function SettingsNetworkRoute() {
               ])}
             />
           </SettingsItem>
-          {networkState?.ipv6_addresses && (
-            <GridCard>
-              <div className="p-4">
-                <div className="space-y-4">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    IPv6 Information
-                  </h3>
-
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                    {networkState?.dhcp_lease?.ip && (
-                      <div className="flex flex-col justify-between">
-                        <span className="text-sm text-slate-600 dark:text-slate-400">
-                          Link-local
-                        </span>
-                        <span className="text-sm font-medium">
-                          {networkState?.ipv6_link_local}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    {networkState?.ipv6_addresses &&
-                      networkState?.ipv6_addresses.length > 0 && (
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold">IPv6 Addresses</h4>
-                          {networkState.ipv6_addresses.map(addr => (
-                            <div
-                              key={addr.address}
-                              className="rounded-md rounded-l-none border border-slate-500/10 border-l-blue-700/50 bg-slate-100/40 p-4 pl-4 dark:border-blue-500 dark:bg-slate-900"
-                            >
-                              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                                <div className="col-span-2 flex flex-col justify-between">
-                                  <span className="text-sm text-slate-600 dark:text-slate-400">
-                                    Address
-                                  </span>
-                                  <span className="text-sm font-medium">
-                                    {addr.address}
-                                  </span>
-                                </div>
-
-                                {addr.valid_lifetime && (
-                                  <div className="flex flex-col justify-between">
-                                    <span className="text-sm text-slate-600 dark:text-slate-400">
-                                      Valid Lifetime
-                                    </span>
-                                    <span className="text-sm font-medium">
-                                      {addr.valid_lifetime === "" ? (
-                                        <span className="text-slate-400 dark:text-slate-600">
-                                          N/A
-                                        </span>
-                                      ) : (
-                                        <LifeTimeLabel
-                                          lifetime={`${addr.valid_lifetime}`}
-                                        />
-                                      )}
-                                    </span>
-                                  </div>
-                                )}
-                                {addr.preferred_lifetime && (
-                                  <div className="flex flex-col justify-between">
-                                    <span className="text-sm text-slate-600 dark:text-slate-400">
-                                      Preferred Lifetime
-                                    </span>
-                                    <span className="text-sm font-medium">
-                                      {addr.preferred_lifetime === "" ? (
-                                        <span className="text-slate-400 dark:text-slate-600">
-                                          N/A
-                                        </span>
-                                      ) : (
-                                        <LifeTimeLabel
-                                          lifetime={`${addr.preferred_lifetime}`}
-                                        />
-                                      )}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+          <AutoHeight>
+            {!networkSettingsLoaded ? (
+              <GridCard>
+                <div className="p-4">
+                  <div className="space-y-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      IPv6 Information
+                    </h3>
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
+                      <div className="h-4 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
+                      <div className="h-4 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </GridCard>
-          )}
+              </GridCard>
+            ) : networkState?.ipv6_addresses && networkState.ipv6_addresses.length > 0 ? (
+              <Ipv6NetworkCard networkState={networkState} />
+            ) : (
+              <EmptyCard
+                IconElm={LuEthernetPort}
+                headline="IPv6 Information"
+                description="No IPv6 addresses configured"
+              />
+            )}
+          </AutoHeight>
         </div>
         <div className="hidden space-y-4">
           <SettingsItem
