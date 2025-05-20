@@ -42,9 +42,6 @@ jobs:
         uses: becheran/go-testreport@v0.3.2
         with:
           input: "testreport.json"
-      - name: Build release
-        run: |
-          make build_release
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

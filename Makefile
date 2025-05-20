@@ -25,7 +25,10 @@ hash_resource:
 
 build_dev: hash_resource
 	@echo "Building..."
-	$(GO_CMD) build -ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION_DEV)" -o $(BIN_DIR)/jetkvm_app cmd/main.go
+	$(GO_CMD) build \
+		-ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION_DEV)" \
+		-trimpath \
+		-o $(BIN_DIR)/jetkvm_app cmd/main.go
 
 build_test2json:
 	$(GO_CMD) build -o $(BIN_DIR)/test2json cmd/test2json
