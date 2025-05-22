@@ -11,7 +11,7 @@ import { chars as chars_sv_SE, name as name_sv_SE } from "@/keyboardLayouts/sv_S
 import { chars as chars_fr_CH, name as name_fr_CH } from "@/keyboardLayouts/fr_CH"
 import { chars as chars_de_CH, name as name_de_CH } from "@/keyboardLayouts/de_CH"
 
-type KeyInfo = { key: string | number; shift?: boolean, altRight?: boolean }
+interface KeyInfo { key: string | number; shift?: boolean, altRight?: boolean }
 export type KeyCombo = KeyInfo & { deadKey?: boolean, accentKey?: KeyInfo }
 
 export const layouts: Record<string, string> = {
