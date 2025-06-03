@@ -9,12 +9,12 @@ import { useSettingsStore } from "@/hooks/stores";
 import { useJsonRpc } from "@/hooks/useJsonRpc";
 import notifications from "@/notifications";
 import { SettingsPageHeader } from "@components/SettingsPageheader";
+import { SelectMenuBasic } from "@components/SelectMenuBasic";
 
 import { useFeatureFlag } from "../hooks/useFeatureFlag";
 import { cx } from "../cva.config";
 
 import { SettingsItem } from "./devices.$id.settings";
-import { SelectMenuBasic } from "@components/SelectMenuBasic";
 
 export default function SettingsMouseRoute() {
   const hideCursor = useSettingsStore(state => state.isCursorHidden);

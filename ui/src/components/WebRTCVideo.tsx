@@ -15,7 +15,6 @@ import {
   useMouseStore,
   useRTCStore,
   useSettingsStore,
-  useUiStore,
   useVideoStore,
 } from "@/hooks/stores";
 
@@ -70,7 +69,6 @@ export default function WebRTCVideo() {
   const [blockWheelEvent, setBlockWheelEvent] = useState(false);
 
   // Misc states and hooks
-  const disableVideoFocusTrap = useUiStore(state => state.disableVideoFocusTrap);
   const [send] = useJsonRpc();
 
   // Video-related
