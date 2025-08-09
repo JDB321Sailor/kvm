@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Environment files
+.env
+.env.development
+.env.local
+.env.production
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+CODE_OF_CONDUCT.md
+LICENSE
+
+# Build tools and configs
+.prettierrc
+publish_source.sh
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# Temporary folders
+tmp
+temp

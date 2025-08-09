@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: jetkvm-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - jetkvm
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--no-check-certificate", "https://localhost:443/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: jetkvm-postgres
+    environment:
+      POSTGRES_USER: jetkvm
+      POSTGRES_PASSWORD: dxSAJDo9HOUAhQbTi1fTO4kbkxXvpy1ZWCw0JDgjg6E=
+      POSTGRES_DB: jetkvm
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - jetkvm
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jetkvm -d jetkvm"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api-migrate:
+    image: jetkvm-cloud-api:latest
+    container_name: jetkvm-api-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://jetkvm:dxSAJDo9HOUAhQbTi1fTO4kbkxXvpy1ZWCw0JDgjg6E=@postgres:5432/jetkvm?schema=public"
+    env_file:
+      - ./cloud-api/.env
+    networks:
+      - jetkvm
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
+
+  api:
+    image: jetkvm-cloud-api:latest
+    container_name: jetkvm-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: "postgresql://jetkvm:dxSAJDo9HOUAhQbTi1fTO4kbkxXvpy1ZWCw0JDgjg6E=@postgres:5432/jetkvm?schema=public"
+      API_HOSTNAME: "https://10.0.0.14/api"
+      APP_HOSTNAME: "https://10.0.0.14"
+      COOKIE_SECRET: "ZYrd5wHwi1+m1mySI5bgfh7IoXWLkegU4JaXFTACKm8="
+      CORS_ORIGINS: "https://10.0.0.14,http://localhost:8080,http://localhost:3000,http://localhost:5173"
+      NODE_ENV: production
+    env_file:
+      - ./cloud-api/.env
+    networks:
+      - jetkvm
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: jetkvm-ui:latest
+    container_name: jetkvm-frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - VITE_CLOUD_API=https://10.0.0.14/api
+    networks:
+      - jetkvm
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+networks:
+  jetkvm:
+    driver: bridge

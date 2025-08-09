@@ -1,0 +1,6 @@
+bin/*
+static/*
+.idea
+.DS_Store
+
+device-tests.tar.gz

@@ -1,0 +1,134 @@
+# JETKVM Cloud - Simplified nginx Configuration
+
+This project has been simplified to use nginx with self-signed certificates instead of Traefik with Let's Encrypt certificates.
+
+## Architecture
+
+- **nginx**: Reverse proxy with SSL termination
+- **Self-signed certificate**: For IP address 10.0.0.14
+- **Docker Compose**: Container orchestration
+- **PostgreSQL**: Database backend
+
+## Quick Start
+
+1. **Start the stack:**
+   ```bash
+   ./manage-stack-simple.sh up
+   ```
+
+2. **Access the application:**
+   - Main interface: https://10.0.0.14
+   - API endpoints: https://10.0.0.14/api
+
+3. **Accept the certificate warning** in your browser (one-time setup)
+
+## SSL Certificate
+
+The system uses a self-signed certificate for the IP address `10.0.0.14`. This provides encryption but will show a certificate warning in browsers.
+
+### Certificate Details
+- **Subject**: CN=10.0.0.14
+- **SAN**: IP:10.0.0.14, DNS:localhost
+- **Validity**: 365 days from generation
+
+### Regenerate Certificate
+```bash
+./regenerate-cert.sh
+```
+
+## Management Commands
+
+```bash
+# Start the stack
+./manage-stack-simple.sh up
+
+# Stop the stack
+./manage-stack-simple.sh down
+
+# Restart the stack
+./manage-stack-simple.sh restart
+
+# Show status
+./manage-stack-simple.sh status
+
+# Show certificate info
+./manage-stack-simple.sh cert
+
+# Test endpoints
+./manage-stack-simple.sh test
+
+# Show logs
+./manage-stack-simple.sh logs [service]
+```
+
+## JetKVM Device Configuration
+
+Configure your JetKVM devices with:
+- **Cloud API Base URL**: `https://10.0.0.14/api`
+- **Cloud Frontend URL**: `https://10.0.0.14`
+
+## nginx Configuration
+
+The nginx configuration handles:
+- HTTP to HTTPS redirects
+- SSL termination
+- API routing (`/api/*` → API container)
+- Frontend routing (`/*` → Frontend container)
+- Security headers
+- Gzip compression
+
+## File Structure
+
+```
+jetkvm-cloud/
+├── docker-compose.yaml          # Simplified stack definition
+├── manage-stack-simple.sh       # Management script
+├── regenerate-cert.sh           # Certificate regeneration
+├── nginx/
+│   ├── nginx.conf              # nginx configuration
+│   └── ssl/
+│       ├── server.crt          # SSL certificate
+│       └── server.key          # SSL private key
+├── cloud-api/                  # API source code
+└── postgres/                   # Database data
+```
+
+## Environment Variables
+
+The stack is configured for local IP-based access:
+- `API_HOSTNAME=https://10.0.0.14`
+- `APP_HOSTNAME=https://10.0.0.14`
+- `CORS_ORIGINS=https://10.0.0.14,...`
+
+## Security Notes
+
+- Uses self-signed certificates (shows browser warnings)
+- Includes standard security headers
+- HTTP automatically redirects to HTTPS
+- Certificate valid for IP and localhost access
+
+## Troubleshooting
+
+### Certificate Warnings
+This is expected with self-signed certificates. Click "Advanced" → "Proceed to 10.0.0.14" in your browser.
+
+### Certificate Regeneration
+If you need a new certificate:
+```bash
+./regenerate-cert.sh
+./manage-stack-simple.sh restart
+```
+
+### Service Health
+Check container health:
+```bash
+./manage-stack-simple.sh status
+```
+
+### Logs
+View service logs:
+```bash
+./manage-stack-simple.sh logs          # All services
+./manage-stack-simple.sh logs nginx    # nginx only
+./manage-stack-simple.sh logs api      # API only
+```
