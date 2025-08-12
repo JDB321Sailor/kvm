@@ -59,6 +59,9 @@ This project deploys a containerized deployment of the JETKVM Cloud which uses n
    
    # Edit .env file to set your LOCAL_IP
    nano cloud-api/.env  # Set LOCAL_IP=YOUR_ACTUAL_IP
+   
+   # Make management scripts executable (Linux/macOS)
+   chmod +x manage-stack.sh regenerate-cert.sh
    ```
 
 2. **Build Docker images:**
