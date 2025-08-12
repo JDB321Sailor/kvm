@@ -1,34 +1,53 @@
-# JETKVM Cloud - Nginx Configuration
+# JETKVM Cloud - nginx SSL Configuration
 
-This project has been created to use nginx with self-signed certificates instead of Traefik with Let's Encrypt certificates.
+This project uses nginx with self-signed certificates for secure local deployment.
 
 ## Architecture
 
 - **nginx**: Reverse proxy with SSL termination
-- **Self-signed certificate**: For example IP address 10.0.0.14
+- **Self-signed certificate**: For example IP address 192.168.1.3 (configure for your network)
 - **Docker Compose**: Container orchestration
 - **PostgreSQL**: Database backend
 
+## Prerequisites
+
+⚠️ **Important**: Complete these steps before deployment:
+
+1. **Generate SSL certificates:**
+   ```bash
+   ./regenerate-cert.sh
+   ```
+
+2. **Configure environment variables:**
+   - Copy `cloud-api/.env.example` to `cloud-api/.env`
+   - Update all placeholder values with your secure credentials
+   - Update IP addresses to match your network configuration
+
 ## Quick Start
 
-1. **Start the stack:**
+1. **Generate SSL certificates:**
+   ```bash
+   ./regenerate-cert.sh
+   ```
+
+2. **Start the stack:**
    ```bash
    ./manage-stack.sh up
    ```
 
-2. **Access the application:**
-   - Main interface: https://10.0.0.14
-   - API endpoints: https://10.0.0.14/api
+3. **Access the application:**
+   - Main interface: https://192.168.1.3
+   - API endpoints: https://192.168.1.3/api
 
-3. **Accept the certificate warning** in your browser (one-time setup)
+4. **Accept the certificate warning** in your browser (one-time setup)
 
 ## SSL Certificate
 
-The system uses a self-signed certificate for the IP address `10.0.0.14`. This provides encryption but will show a certificate warning in browsers.
+The system uses a self-signed certificate for your local IP address. This provides encryption but will show a certificate warning in browsers.
 
 ### Certificate Details
-- **Subject**: CN=10.0.0.14
-- **SAN**: IP:10.0.0.14, DNS:localhost
+- **Subject**: CN=192.168.1.3 (example)
+- **SAN**: IP:192.168.1.3, DNS:localhost
 - **Validity**: 365 days from generation
 
 ### Regenerate Certificate
@@ -64,8 +83,8 @@ The system uses a self-signed certificate for the IP address `10.0.0.14`. This p
 ## JetKVM Device Configuration
 
 Configure your JetKVM devices with:
-- **Cloud API Base URL**: `https://10.0.0.14/api`
-- **Cloud Frontend URL**: `https://10.0.0.14`
+- **Cloud API Base URL**: `https://192.168.1.3/api`
+- **Cloud Frontend URL**: `https://192.168.1.3`
 
 ## nginx Configuration
 
@@ -81,14 +100,14 @@ The nginx configuration handles:
 
 ```
 jetkvm-cloud/
-├── docker-compose.yaml          # Simplified stack definition
+├── docker-compose.yaml          # Docker stack definition
 ├── manage-stack.sh              # Management script
-├── regenerate-cert.sh           # Certificate regeneration
+├── regenerate-cert.sh           # Certificate generation (run first!)
 ├── nginx/
 │   ├── nginx.conf              # nginx configuration
 │   └── ssl/
-│       ├── server.crt          # SSL certificate
-│       └── server.key          # SSL private key
+│       ├── server.crt          # SSL certificate (generated)
+│       └── server.key          # SSL private key (generated)
 ├── cloud-api/                  # API source code
 └── postgres/                   # Database data
 ```
@@ -96,9 +115,9 @@ jetkvm-cloud/
 ## Environment Variables
 
 The stack is configured for local IP-based access:
-- `API_HOSTNAME=https://10.0.0.14`
-- `APP_HOSTNAME=https://10.0.0.14`
-- `CORS_ORIGINS=https://10.0.0.14,...`
+- `API_HOSTNAME=https://192.168.1.3`
+- `APP_HOSTNAME=https://192.168.1.3`
+- `CORS_ORIGINS=https://192.168.1.3,...`
 
 ## Security Notes
 

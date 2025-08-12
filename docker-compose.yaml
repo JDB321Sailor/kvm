@@ -27,7 +27,7 @@ services:
     container_name: jetkvm-postgres
     environment:
       POSTGRES_USER: jetkvm
-      POSTGRES_PASSWORD: dxSAJDo9HOUAhQbTi1fTO4kbkxXvpy1ZWCw0JDgjg6E=
+      POSTGRES_PASSWORD: your_secure_postgres_password_here
       POSTGRES_DB: jetkvm
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -47,7 +47,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://jetkvm:dxSAJDo9HOUAhQbTi1fTO4kbkxXvpy1ZWCw0JDgjg6E=@postgres:5432/jetkvm?schema=public"
+      DATABASE_URL: "postgresql://jetkvm:your_secure_postgres_password_here@postgres:5432/jetkvm?schema=public"
     env_file:
       - ./cloud-api/.env
     networks:
@@ -64,11 +64,11 @@ services:
       api-migrate:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: "postgresql://jetkvm:dxSAJDo9HOUAhQbTi1fTO4kbkxXvpy1ZWCw0JDgjg6E=@postgres:5432/jetkvm?schema=public"
-      API_HOSTNAME: "https://10.0.0.14/api"
-      APP_HOSTNAME: "https://10.0.0.14"
-      COOKIE_SECRET: "ZYrd5wHwi1+m1mySI5bgfh7IoXWLkegU4JaXFTACKm8="
-      CORS_ORIGINS: "https://10.0.0.14,http://localhost:8080,http://localhost:3000,http://localhost:5173"
+      DATABASE_URL: "postgresql://jetkvm:your_secure_postgres_password_here@postgres:5432/jetkvm?schema=public"
+      API_HOSTNAME: "https://192.168.1.3/api"
+      APP_HOSTNAME: "https://192.168.1.3"
+      COOKIE_SECRET: "your_secure_cookie_secret_here"
+      CORS_ORIGINS: "https://192.168.1.3,http://localhost:8080,http://localhost:3000,http://localhost:5173"
       NODE_ENV: production
     env_file:
       - ./cloud-api/.env
@@ -88,7 +88,7 @@ services:
       api:
         condition: service_healthy
     environment:
-      - VITE_CLOUD_API=https://10.0.0.14/api
+      - VITE_CLOUD_API=https://192.168.1.3/api
     networks:
       - jetkvm
     restart: unless-stopped

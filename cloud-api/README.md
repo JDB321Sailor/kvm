@@ -35,7 +35,7 @@ To start the development server, run:
 # Don't use in production
 docker run --name jetkvm-cloud-db \
     -e POSTGRES_USER=jetkvm \
-    -e POSTGRES_PASSWORD=mysecretpassword \
+    -e POSTGRES_PASSWORD=your_secure_password_here \
     -e POSTGRES_DB=jetkvm \
     -d postgres
 

@@ -2,7 +2,7 @@
 
 # Certificate Regeneration Script for JETKVM Cloud
 
-echo "🔐 Regenerating self-signed certificate for 10.0.0.14..."
+echo "🔐 Regenerating self-signed certificate for 192.168.1.3..."
 
 # Create ssl directory if it doesn't exist
 mkdir -p nginx/ssl
@@ -12,8 +12,8 @@ cd nginx/ssl
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout server.key \
     -out server.crt \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=10.0.0.14" \
-    -addext "subjectAltName=IP:10.0.0.14,DNS:localhost"
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=192.168.1.3" \
+    -addext "subjectAltName=IP:192.168.1.3,DNS:localhost"
 
 echo "✅ Certificate generated successfully!"
 echo ""

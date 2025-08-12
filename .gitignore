@@ -3,6 +3,12 @@
 .env.local
 .env.*.local
 
+# SSL Certificates
+*.crt
+*.key
+*.pem
+nginx/ssl/
+
 # IDE
 .vscode/
 .idea/

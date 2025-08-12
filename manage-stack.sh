@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # JETKVM Cloud Stack Management Script
-# Simplified nginx-based deployment with self-signed certificates
+# nginx-based deployment with self-signed certificates
 
 set -e
 
@@ -23,13 +23,13 @@ show_help() {
 }
 
 start_stack() {
-    echo "🚀 Starting JETKVM Cloud Stack (nginx-based)..."
+    echo "🚀 Starting JETKVM Cloud Stack (nginx with self-signed SSL)..."
     docker-compose up -d
     echo "✅ Stack started"
     echo ""
     echo "🌐 Access your JETKVM Cloud at:"
-    echo "   https://10.0.0.14 (main interface)"
-    echo "   https://10.0.0.14/api (API endpoints)"
+    echo "   https://192.168.1.3 (main interface)"
+    echo "   https://192.168.1.3/api (API endpoints)"
     echo ""
     echo "⚠️  Note: You may need to accept the self-signed certificate"
 }
@@ -83,16 +83,16 @@ test_endpoints() {
     echo ""
     
     # Test main interface
-    echo "🌐 Testing main interface (https://10.0.0.14):"
-    if curl -k -s -o /dev/null -w "%{http_code}" https://10.0.0.14 | grep -q "200"; then
+    echo "🌐 Testing main interface (https://192.168.1.3):"
+    if curl -k -s -o /dev/null -w "%{http_code}" https://192.168.1.3 | grep -q "200"; then
         echo "  ✅ Main interface: OK"
     else
         echo "  ❌ Main interface: Failed"
     fi
     
     # Test API health
-    echo "🔌 Testing API health (https://10.0.0.14/api/):"
-    if curl -k -L -s -o /dev/null -w "%{http_code}" https://10.0.0.14/api/ | grep -q "200"; then
+    echo "🔌 Testing API health (https://192.168.1.3/api/):"
+    if curl -k -L -s -o /dev/null -w "%{http_code}" https://192.168.1.3/api/ | grep -q "200"; then
         echo "  ✅ API health: OK"
     else
         echo "  ❌ API health: Failed"
