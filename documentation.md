@@ -81,23 +81,21 @@ cp cloud-api/.env.example cloud-api/.env
 ./regenerate-cert.sh
 ```
 
-## ✅ **System Status** (As of July 21, 2025)
+## ✅ **System Status**
 
 | Component | Status | Health |
 |-----------|--------|---------|
 | PostgreSQL | Running | Healthy |
 | API | Running | Healthy |
 | Frontend | Running | Healthy |
-| nginx | Running | Working* |
-
-*nginx shows "unhealthy" in Docker but is functioning correctly
+| nginx | Running | Healthy |
 
 ## 🔒 **Certificate Details**
 
-- **Subject**: CN=192.168.1.3
+- **Subject**: CN=YOUR_LOCAL_IP
 - **Valid**: July 21, 2025 - July 21, 2026
 - **Type**: Self-signed RSA 2048-bit
-- **SAN**: IP:192.168.1.3, DNS:localhost
+- **SAN**: IP:YOUR_LOCAL_IP, DNS:localhost
 
 ## ⚠️ **Browser Certificate Warning**
 
