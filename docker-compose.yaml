@@ -65,10 +65,10 @@ services:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: "postgresql://jetkvm:your_secure_postgres_password_here@postgres:5432/jetkvm?schema=public"
-      API_HOSTNAME: "https://192.168.1.3/api"
-      APP_HOSTNAME: "https://192.168.1.3"
+      API_HOSTNAME: "https://${LOCAL_IP:-192.168.1.3}/api"
+      APP_HOSTNAME: "https://${LOCAL_IP:-192.168.1.3}"
       COOKIE_SECRET: "your_secure_cookie_secret_here"
-      CORS_ORIGINS: "https://192.168.1.3,http://localhost:8080,http://localhost:3000,http://localhost:5173"
+      CORS_ORIGINS: "https://${LOCAL_IP:-192.168.1.3},http://localhost:8080,http://localhost:3000,http://localhost:5173"
       NODE_ENV: production
     env_file:
       - ./cloud-api/.env
@@ -88,7 +88,7 @@ services:
       api:
         condition: service_healthy
     environment:
-      - VITE_CLOUD_API=https://192.168.1.3/api
+      - VITE_CLOUD_API=https://${LOCAL_IP:-192.168.1.3}/api
     networks:
       - jetkvm
     restart: unless-stopped

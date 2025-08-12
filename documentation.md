@@ -2,14 +2,15 @@
 
 ## Summary
 
-A Docker-based nginx deployment with self-signed SSL certificate generation and management scripts for local JETKVM Cloud-API deployment.
+A Docker-based nginx deployment with self-signed SSL certificate generation and environment variable configuration for flexible local JETKVM Cloud-API deployment.
 
 ## ✅ What Was Accomplished
 
 ### 🛡️ **Implemented Self-Signed SSL**
-- Generated self-signed certificate for IP address `192.168.1.3`
+- Generated self-signed certificate for configurable IP address
 - Certificate includes Subject Alternative Names for IP and localhost
 - Valid for 365 days from generation
+- Automatic IP address detection from environment variables
 
 ### 🌐 **nginx Reverse Proxy**
 - Clean, efficient nginx configuration
@@ -17,6 +18,16 @@ A Docker-based nginx deployment with self-signed SSL certificate generation and 
 - API routing (`/api/*` → API container)
 - Frontend routing (`/*` → Frontend container)
 - Security headers and gzip compression
+
+### 🔧 **Environment Variable Support**
+- Added `LOCAL_IP` environment variable for flexible IP configuration
+- All scripts and configurations use environment variables
+- No hardcoded IP addresses or user-specific paths
+
+### 🛠️ **Docker Image Build Process**
+- Added build command to management script
+- Automated building of Cloud API and UI Docker images
+- Streamlined deployment workflow
 
 ### 📁 **Streamlined Architecture**
 ```
@@ -26,22 +37,32 @@ Client → nginx (SSL termination) → {
 }
 ```
 
-## 🎯 **Current Endpoints**
+## 🎯 **Dynamic Endpoints**
 
-- **Main Interface**: `https://192.168.1.3`
-- **API Access**: `https://192.168.1.3/api`
-- **HTTP Redirect**: `http://192.168.1.3` → `https://192.168.1.3`
+Configure your LOCAL_IP in `cloud-api/.env`, then access:
+- **Main Interface**: `https://YOUR_LOCAL_IP`
+- **API Access**: `https://YOUR_LOCAL_IP/api`
+- **HTTP Redirect**: `http://YOUR_LOCAL_IP` → `https://YOUR_LOCAL_IP`
 
 ## ⚙️ **JetKVM Device Configuration**
 
-Configure your JetKVM devices with these URLs:
-- **Cloud API Base URL**: `https://192.168.1.3/api`
-- **Cloud Frontend URL**: `https://192.168.1.3`
+Configure your JetKVM devices with your LOCAL_IP address:
+- **Cloud API Base URL**: `https://YOUR_LOCAL_IP/api`
+- **Cloud Frontend URL**: `https://YOUR_LOCAL_IP`
+
+(Replace YOUR_LOCAL_IP with the IP address you configured in `.env`)
 
 ## 🚀 **Management Commands**
 
 ```bash
-# IMPORTANT: Generate certificates first!
+# IMPORTANT: Configure environment first!
+cp cloud-api/.env.example cloud-api/.env
+# Edit .env file to set LOCAL_IP=YOUR_ACTUAL_IP
+
+# Build Docker images (required before first run)
+./manage-stack.sh build
+
+# Generate certificates for your IP
 ./regenerate-cert.sh
 
 # Start the stack
@@ -56,7 +77,7 @@ Configure your JetKVM devices with these URLs:
 # View certificate info
 ./manage-stack.sh cert
 
-# Regenerate certificate
+# Regenerate certificate (if IP changes)
 ./regenerate-cert.sh
 ```
 

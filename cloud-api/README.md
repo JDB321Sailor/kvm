@@ -28,6 +28,20 @@ If you've found an issue and want to report it, please check our [Issues](https:
 
 This project is built with Node.JS, Prisma and Express.
 
+### Building Docker Image
+
+For deployment, you can build the Docker image using:
+
+```bash
+# Build the image locally
+./build-docker.sh
+
+# Or from the main project directory
+./manage-stack.sh build  # Builds both API and UI images
+```
+
+### Local Development
+
 To start the development server, run:
 
 ```bash

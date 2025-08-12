@@ -1,53 +1,74 @@
 # JETKVM Cloud - nginx SSL Configuration
 
-This project uses nginx with self-signed certificates for secure local deployment.
+This project uses nginx with self-signed certificates for secure local deployment with configurable IP addressing.
+
+> **Important**: This deployment is designed to work by using environment variables for IP configuration.
 
 ## Architecture
 
 - **nginx**: Reverse proxy with SSL termination
-- **Self-signed certificate**: For example IP address 192.168.1.3 (configure for your network)
-- **Docker Compose**: Container orchestration
+- **Self-signed certificate**: Generated for your configured LOCAL_IP address
+- **Docker Compose**: Container orchestration with environment variable support
 - **PostgreSQL**: Database backend
 
 ## Prerequisites
 
 ⚠️ **Important**: Complete these steps before deployment:
 
-1. **Generate SSL certificates:**
+1. **Configure environment variables:**
+   - Copy `cloud-api/.env.example` to `cloud-api/.env`
+   - Set `LOCAL_IP` to your machine's IP address (e.g., `LOCAL_IP=192.168.1.100`)
+   - Update all placeholder values with your secure credentials
+
+2. **Build Docker images:**
+   ```bash
+   ./manage-stack.sh build
+   ```
+
+3. **Generate SSL certificates:**
    ```bash
    ./regenerate-cert.sh
    ```
-
-2. **Configure environment variables:**
-   - Copy `cloud-api/.env.example` to `cloud-api/.env`
-   - Update all placeholder values with your secure credentials
-   - Update IP addresses to match your network configuration
 
 ## Quick Start
 
-1. **Generate SSL certificates:**
+1. **Configure environment:**
+   ```bash
+   # Copy environment template
+   cp cloud-api/.env.example cloud-api/.env
+   
+   # Edit .env file to set your LOCAL_IP
+   nano cloud-api/.env  # Set LOCAL_IP=YOUR_ACTUAL_IP
+   ```
+
+2. **Build Docker images:**
+   ```bash
+   ./manage-stack.sh build
+   ```
+
+3. **Generate SSL certificates:**
    ```bash
    ./regenerate-cert.sh
    ```
 
-2. **Start the stack:**
+4. **Start the stack:**
    ```bash
    ./manage-stack.sh up
    ```
 
-3. **Access the application:**
-   - Main interface: https://192.168.1.3
-   - API endpoints: https://192.168.1.3/api
+5. **Access the application:**
+   - Main interface: https://YOUR_LOCAL_IP
+   - API endpoints: https://YOUR_LOCAL_IP/api
 
-4. **Accept the certificate warning** in your browser (one-time setup)
+6. **Accept the certificate warning** in your browser (one-time setup)
 
 ## SSL Certificate
 
-The system uses a self-signed certificate for your local IP address. This provides encryption but will show a certificate warning in browsers.
+The system uses a self-signed certificate for your configured LOCAL_IP address. This provides encryption but will show a certificate warning in browsers.
 
 ### Certificate Details
-- **Subject**: CN=192.168.1.3 (example)
-- **SAN**: IP:192.168.1.3, DNS:localhost
+- **Subject**: CN=YOUR_LOCAL_IP (dynamically generated)
+- **SAN**: IP:YOUR_LOCAL_IP, DNS:localhost
 - **Validity**: 365 days from generation
 
 ### Regenerate Certificate
@@ -58,6 +79,9 @@ The system uses a self-signed certificate for your local IP address. This provid
 ## Management Commands
 
 ```bash
+# Build Docker images (required before first run)
+./manage-stack.sh build
+
 # Start the stack
 ./manage-stack.sh up
 
@@ -82,9 +106,11 @@ The system uses a self-signed certificate for your local IP address. This provid
 
 ## JetKVM Device Configuration
 
-Configure your JetKVM devices with:
-- **Cloud API Base URL**: `https://192.168.1.3/api`
-- **Cloud Frontend URL**: `https://192.168.1.3`
+Configure your JetKVM devices with your LOCAL_IP address:
+- **Cloud API Base URL**: `https://YOUR_LOCAL_IP/api`
+- **Cloud Frontend URL**: `https://YOUR_LOCAL_IP`
+
+(Replace YOUR_LOCAL_IP with the IP address you configured in `.env`)
 
 ## nginx Configuration
 
@@ -114,10 +140,10 @@ jetkvm-cloud/
 
 ## Environment Variables
 
-The stack is configured for local IP-based access:
-- `API_HOSTNAME=https://192.168.1.3`
-- `APP_HOSTNAME=https://192.168.1.3`
-- `CORS_ORIGINS=https://192.168.1.3,...`
+The stack uses environment variable substitution for flexible IP configuration:
+- Copy `cloud-api/.env.example` to `cloud-api/.env`
+- Set `LOCAL_IP=YOUR_ACTUAL_IP` in the `.env` file
+- All services will automatically use your configured IP address
 
 ## Security Notes
 
@@ -129,7 +155,7 @@ The stack is configured for local IP-based access:
 ## Troubleshooting
 
 ### Certificate Warnings
-This is expected with self-signed certificates. Click "Advanced" → "Proceed to 10.0.0.14" in your browser.
+This is expected with self-signed certificates. Click "Advanced" → "Proceed to YOUR_LOCAL_IP" in your browser.
 
 ### Certificate Regeneration
 If you need a new certificate:

@@ -2,7 +2,15 @@
 
 # Certificate Regeneration Script for JETKVM Cloud
 
-echo "🔐 Regenerating self-signed certificate for 192.168.1.3..."
+# Load environment variables if .env file exists
+if [ -f "cloud-api/.env" ]; then
+    export $(grep -v '^#' cloud-api/.env | grep -v '^$' | xargs)
+fi
+
+# Default IP if not set in environment
+LOCAL_IP=${LOCAL_IP:-192.168.1.3}
+
+echo "🔐 Regenerating self-signed certificate for $LOCAL_IP..."
 
 # Create ssl directory if it doesn't exist
 mkdir -p nginx/ssl
@@ -12,8 +20,8 @@ cd nginx/ssl
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout server.key \
     -out server.crt \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=192.168.1.3" \
-    -addext "subjectAltName=IP:192.168.1.3,DNS:localhost"
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=$LOCAL_IP" \
+    -addext "subjectAltName=IP:$LOCAL_IP,DNS:localhost"
 
 echo "✅ Certificate generated successfully!"
 echo ""

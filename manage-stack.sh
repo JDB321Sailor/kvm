@@ -5,12 +5,21 @@
 
 set -e
 
+# Load environment variables if .env file exists
+if [ -f "cloud-api/.env" ]; then
+    export $(grep -v '^#' cloud-api/.env | grep -v '^$' | xargs)
+fi
+
+# Default IP if not set in environment
+LOCAL_IP=${LOCAL_IP:-192.168.1.3}
+
 show_help() {
     echo "JETKVM Cloud Stack Management"
     echo ""
     echo "Usage: $0 [COMMAND]"
     echo ""
     echo "Commands:"
+    echo "  build     Build required Docker images"
     echo "  up        Start the stack"
     echo "  down      Stop the stack"
     echo "  restart   Restart the stack"
@@ -20,6 +29,33 @@ show_help() {
     echo "  test      Test HTTPS endpoints"
     echo "  help      Show this help"
     echo ""
+    echo "Environment:"
+    echo "  LOCAL_IP  Current IP address: $LOCAL_IP"
+    echo "            (Configure in cloud-api/.env)"
+    echo ""
+}
+
+build_images() {
+    echo "🔨 Building JETKVM Cloud Docker Images..."
+    echo ""
+    
+    # Build Cloud API image
+    echo "📦 Building Cloud API image..."
+    cd cloud-api
+    ./build-docker.sh
+    cd ..
+    echo ""
+    
+    # Build UI image
+    echo "🎨 Building UI image..."
+    cd kvm/ui
+    ./build-docker.sh
+    cd ../..
+    echo ""
+    
+    echo "✅ All Docker images built successfully!"
+    echo ""
+    echo "ℹ️  You can now run: $0 up"
 }
 
 start_stack() {
@@ -28,8 +64,8 @@ start_stack() {
     echo "✅ Stack started"
     echo ""
     echo "🌐 Access your JETKVM Cloud at:"
-    echo "   https://192.168.1.3 (main interface)"
-    echo "   https://192.168.1.3/api (API endpoints)"
+    echo "   https://$LOCAL_IP (main interface)"
+    echo "   https://$LOCAL_IP/api (API endpoints)"
     echo ""
     echo "⚠️  Note: You may need to accept the self-signed certificate"
 }
@@ -66,14 +102,15 @@ show_status() {
 show_cert() {
     echo "🔒 SSL Certificate Information:"
     echo ""
-    if [ -f "/home/jbame/jetkvm-cloud/nginx/ssl/server.crt" ]; then
+    local cert_path="nginx/ssl/server.crt"
+    if [ -f "$cert_path" ]; then
         echo "📄 Certificate Details:"
-        openssl x509 -in /home/jbame/jetkvm-cloud/nginx/ssl/server.crt -text -noout | grep -E "(Subject:|Issuer:|Not Before|Not After|Subject Alternative Name)" | sed 's/^[[:space:]]*/  /'
+        openssl x509 -in "$cert_path" -text -noout | grep -E "(Subject:|Issuer:|Not Before|Not After|Subject Alternative Name)" | sed 's/^[[:space:]]*/  /'
         echo ""
         echo "🔍 Certificate Validity:"
-        openssl x509 -in /home/jbame/jetkvm-cloud/nginx/ssl/server.crt -noout -dates | sed 's/^/  /'
+        openssl x509 -in "$cert_path" -noout -dates | sed 's/^/  /'
     else
-        echo "❌ Certificate file not found at nginx/ssl/server.crt"
+        echo "❌ Certificate file not found at $cert_path"
         echo "   Run: ./regenerate-cert.sh to create a new certificate"
     fi
 }
@@ -83,16 +120,16 @@ test_endpoints() {
     echo ""
     
     # Test main interface
-    echo "🌐 Testing main interface (https://192.168.1.3):"
-    if curl -k -s -o /dev/null -w "%{http_code}" https://192.168.1.3 | grep -q "200"; then
+    echo "🌐 Testing main interface (https://$LOCAL_IP):"
+    if curl -k -s -o /dev/null -w "%{http_code}" https://$LOCAL_IP | grep -q "200"; then
         echo "  ✅ Main interface: OK"
     else
         echo "  ❌ Main interface: Failed"
     fi
     
     # Test API health
-    echo "🔌 Testing API health (https://192.168.1.3/api/):"
-    if curl -k -L -s -o /dev/null -w "%{http_code}" https://192.168.1.3/api/ | grep -q "200"; then
+    echo "🔌 Testing API health (https://$LOCAL_IP/api/):"
+    if curl -k -L -s -o /dev/null -w "%{http_code}" https://$LOCAL_IP/api/ | grep -q "200"; then
         echo "  ✅ API health: OK"
     else
         echo "  ❌ API health: Failed"
@@ -103,6 +140,9 @@ test_endpoints() {
 }
 
 case "${1:-help}" in
+    "build")
+        build_images
+        ;;
     "up"|"start")
         start_stack
         ;;
