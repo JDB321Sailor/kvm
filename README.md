@@ -1,107 +1,134 @@
-# JetKVM Cloud Setup
+# JETKVM Cloud - Simplified nginx Configuration
 
-This is a simplified deployment setup using nginx as a reverse proxy with self-signed SSL certificates.
+This project has been simplified to use nginx with self-signed certificates instead of Traefik with Let's Encrypt certificates.
 
-## Stack Components
+## Architecture
 
-- **nginx**: Reverse proxy with SSL termination  
-- **PostgreSQL**: Database
-- **API**: Node.js/TypeScript backend
-- **Frontend**: React/Vite frontend
-
-## Prerequisites
-
-- Docker and Docker Compose installed
-- Built Docker images for the API and UI components
+- **nginx**: Reverse proxy with SSL termination
+- **Self-signed certificate**: For IP address 10.0.0.14
+- **Docker Compose**: Container orchestration
+- **PostgreSQL**: Database backend
 
 ## Quick Start
 
-1. **Copy environment files:**
-   ```bash
-   cp kvm/.env.example kvm/.env
-   cp cloud-api/.env.example cloud-api/.env
-   ```
-
-2. **Configure environment variables:**
-   - Edit `kvm/.env` and `cloud-api/.env` with your specific values
-   - Update hostnames to match your server IP address (currently configured for 10.0.0.14)
-
-3. **Generate session secrets:**
-   ```bash
-   openssl rand -base64 32
-   ```
-   Use this value for `COOKIE_SECRET` in both .env files
-
-4. **Set up Google OAuth (optional):**
-   - Create a project in Google Cloud Console
-   - Enable Google+ API  
-   - Create OAuth 2.0 credentials
-   - Add redirect URIs: `https://YOUR_IP_ADDRESS/api/oidc/callback`
-   - Update `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in .env files
-
-5. **Deploy the stack:**
+1. **Start the stack:**
    ```bash
    ./manage-stack-simple.sh up
    ```
 
-6. **Access the application:**
-   - **Web interface**: https://YOUR_IP_ADDRESS
-   - **API**: https://YOUR_IP_ADDRESS/api
+2. **Access the application:**
+   - Main interface: https://10.0.0.14
+   - API endpoints: https://10.0.0.14/api
 
-## SSL Certificates
+3. **Accept the certificate warning** in your browser (one-time setup)
 
-The stack uses self-signed SSL certificates generated automatically. For production use, consider:
-- Let's Encrypt certificates
-- Proper domain name with DNS  
-- Certificate authority signed certificates
+## SSL Certificate
+
+The system uses a self-signed certificate for the IP address `10.0.0.14`. This provides encryption but will show a certificate warning in browsers.
+
+### Certificate Details
+- **Subject**: CN=10.0.0.14
+- **SAN**: IP:10.0.0.14, DNS:localhost
+- **Validity**: 365 days from generation
+
+### Regenerate Certificate
+```bash
+./regenerate-cert.sh
+```
 
 ## Management Commands
-
-Use the `manage-stack-simple.sh` script:
 
 ```bash
 # Start the stack
 ./manage-stack-simple.sh up
 
-# Stop the stack  
+# Stop the stack
 ./manage-stack-simple.sh down
 
 # Restart the stack
 ./manage-stack-simple.sh restart
 
-# View logs (all services)
-./manage-stack-simple.sh logs
-
-# View logs for specific service
-./manage-stack-simple.sh logs api
-./manage-stack-simple.sh logs frontend  
-./manage-stack-simple.sh logs postgres
-./manage-stack-simple.sh logs nginx
-
-# Check service status
+# Show status
 ./manage-stack-simple.sh status
+
+# Show certificate info
+./manage-stack-simple.sh cert
+
+# Test endpoints
+./manage-stack-simple.sh test
+
+# Show logs
+./manage-stack-simple.sh logs [service]
 ```
+
+## JetKVM Device Configuration
+
+Configure your JetKVM devices with:
+- **Cloud API Base URL**: `https://10.0.0.14/api`
+- **Cloud Frontend URL**: `https://10.0.0.14`
+
+## nginx Configuration
+
+The nginx configuration handles:
+- HTTP to HTTPS redirects
+- SSL termination
+- API routing (`/api/*` → API container)
+- Frontend routing (`/*` → Frontend container)
+- Security headers
+- Gzip compression
+
+## File Structure
+
+```
+jetkvm-cloud/
+├── docker-compose.yaml          # Simplified stack definition
+├── manage-stack-simple.sh       # Management script
+├── regenerate-cert.sh           # Certificate regeneration
+├── nginx/
+│   ├── nginx.conf              # nginx configuration
+│   └── ssl/
+│       ├── server.crt          # SSL certificate
+│       └── server.key          # SSL private key
+├── cloud-api/                  # API source code
+└── postgres/                   # Database data
+```
+
+## Environment Variables
+
+The stack is configured for local IP-based access:
+- `API_HOSTNAME=https://10.0.0.14`
+- `APP_HOSTNAME=https://10.0.0.14`
+- `CORS_ORIGINS=https://10.0.0.14,...`
 
 ## Security Notes
 
-- `.env` files are ignored by git and contain sensitive information
-- Change default passwords and secrets before production use
-- Self-signed certificates will show security warnings in browsers
-- Consider proper SSL certificates for production deployments
+- Uses self-signed certificates (shows browser warnings)
+- Includes standard security headers
+- HTTP automatically redirects to HTTPS
+- Certificate valid for IP and localhost access
 
 ## Troubleshooting
 
-### Services not starting
-1. Check if required ports are available (80, 443, 5432)
-2. Ensure Docker images are built correctly
-3. Check logs: `./manage-stack-simple.sh logs [service]`
+### Certificate Warnings
+This is expected with self-signed certificates. Click "Advanced" → "Proceed to 10.0.0.14" in your browser.
 
-### SSL Certificate Issues  
-1. Certificates are generated automatically on first run
-2. If you see SSL errors, try: `./manage-stack-simple.sh restart`
-3. Check nginx logs: `./manage-stack-simple.sh logs nginx`
+### Certificate Regeneration
+If you need a new certificate:
+```bash
+./regenerate-cert.sh
+./manage-stack-simple.sh restart
+```
 
-### Google OAuth Issues
-1. Update redirect URI in Google Cloud Console to `https://YOUR_IP_ADDRESS/api/oidc/callback`
-2. Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in .env files
-3. Check that hostnames in .env match your actual IP address
+### Service Health
+Check container health:
+```bash
+./manage-stack-simple.sh status
+```
+
+### Logs
+View service logs:
+```bash
+./manage-stack-simple.sh logs          # All services
+./manage-stack-simple.sh logs nginx    # nginx only
+./manage-stack-simple.sh logs api      # API only
+```
