@@ -251,7 +251,7 @@ async function authenticateClientRequest(req: Request & { session: any }) {
   }
 
   try {
-    const { sub } = jose.decodeJwt(token);
+    const { iss, sub } = jose.decodeJwt(token);
     const url = new URL(req.url || "", "http://localhost");
     const deviceId = url.searchParams.get("id");
 
@@ -261,10 +261,20 @@ async function authenticateClientRequest(req: Request & { session: any }) {
     }
 
     // Check if device exists and user has access
-    const device = await prisma.device.findUnique({
-      where: { id: deviceId, user: { googleId: sub } },
-      select: { id: true },
-    });
+    const authProvider = process.env.AUTH_PROVIDER || 'google';
+    let device;
+    
+    if (iss === "https://accounts.google.com" && authProvider === 'google') {
+      device = await prisma.device.findUnique({
+        where: { id: deviceId, user: { googleId: sub } },
+        select: { id: true },
+      });
+    } else if (iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik') {
+      device = await prisma.device.findUnique({
+        where: { id: deviceId, user: { authentikId: sub } },
+        select: { id: true },
+      });
+    }
 
     if (!device) {
       console.log("[Client] Device not found or user doesn't have access.");

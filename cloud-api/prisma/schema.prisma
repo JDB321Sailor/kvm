@@ -14,12 +14,13 @@ datasource db {
 }
 
 model User {
-  id       BigInt         @id @default(autoincrement())
-  googleId String         @unique
-  email    String?
-  picture  String?
-  device   Device[]
-  Activity TurnActivity[]
+  id          BigInt         @id @default(autoincrement())
+  googleId    String?        @unique
+  authentikId String?        @unique
+  email       String?
+  picture     String?
+  device      Device[]
+  Activity    TurnActivity[]
 }
 
 model Device {

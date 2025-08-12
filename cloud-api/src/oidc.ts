@@ -1,4 +1,4 @@
-import { generators, Issuer } from "openid-client";
+import { generators, Issuer, Client } from "openid-client";
 import express from "express";
 import { prisma } from "./db";
 import { BadRequestError } from "./errors";
@@ -7,18 +7,35 @@ import * as crypto from "crypto";
 const API_HOSTNAME = process.env.API_HOSTNAME;
 const APP_HOSTNAME = process.env.APP_HOSTNAME;
 const REDIRECT_URI = `${API_HOSTNAME}/oidc/callback`;
+const AUTH_PROVIDER = process.env.AUTH_PROVIDER || 'google';
 
-const getGoogleOIDCClient = async () => {
-  const googleIssuer = await Issuer.discover("https://accounts.google.com");
-  return new googleIssuer.Client({
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET,
-    redirect_uris: [REDIRECT_URI],
-    response_types: ["code"],
-  });
+const getOIDCClient = async (): Promise<Client> => {
+  if (AUTH_PROVIDER === 'google') {
+    const googleIssuer = await Issuer.discover("https://accounts.google.com");
+    return new googleIssuer.Client({
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirect_uris: [REDIRECT_URI],
+      response_types: ["code"],
+    });
+  } else if (AUTH_PROVIDER === 'authentik') {
+    if (!process.env.AUTHENTIK_ISSUER) {
+      throw new Error("AUTHENTIK_ISSUER is required when using Authentik authentication");
+    }
+    
+    const authentikIssuer = await Issuer.discover(process.env.AUTHENTIK_ISSUER);
+    return new authentikIssuer.Client({
+      client_id: process.env.AUTHENTIK_CLIENT_ID!,
+      client_secret: process.env.AUTHENTIK_CLIENT_SECRET!,
+      redirect_uris: [REDIRECT_URI],
+      response_types: ["code"],
+    });
+  } else {
+    throw new Error(`Unsupported authentication provider: ${AUTH_PROVIDER}`);
+  }
 };
 
-export const Google = async (req: express.Request, res: express.Response) => {
+export const Login = async (req: express.Request, res: express.Response) => {
   const state = new URLSearchParams();
 
   // Generate a CSRF token and store it in the session, so the callback
@@ -33,7 +50,7 @@ export const Google = async (req: express.Request, res: express.Response) => {
   const code_challenge = generators.codeChallenge(code_verifier);
   req.session!.code_verifier = code_verifier;
 
-  const client = await getGoogleOIDCClient();
+  const client = await getOIDCClient();
   const authorizationUrl = client.authorizationUrl({
     scope: "openid email profile",
     state: state.toString(),
@@ -45,8 +62,11 @@ export const Google = async (req: express.Request, res: express.Response) => {
   return res.redirect(authorizationUrl);
 };
 
+// Keep Google route for backward compatibility
+export const Google = Login;
+
 export const Callback = async (req: express.Request, res: express.Response) => {
-  const client = await getGoogleOIDCClient();
+  const client = await getOIDCClient();
 
   // Retrieve recognized callback parameters from the request, e.g. code and state
   const params = client.callbackParams(req);
@@ -90,30 +110,53 @@ export const Callback = async (req: express.Request, res: express.Response) => {
 
   req.session!.id_token = tokenSet.id_token;
 
-  await prisma.user.upsert({
-    where: { googleId: tokenClaims.sub },
-    update: {
-      googleId: tokenClaims.sub,
-      email: userInfo.email,
-      picture: userInfo.picture,
-    },
-    create: {
-      googleId: tokenClaims.sub,
-      email: userInfo.email,
-      picture: userInfo.picture,
-    },
-  });
+  // Handle user creation/update based on provider
+  let user;
+  if (AUTH_PROVIDER === 'google') {
+    user = await prisma.user.upsert({
+      where: { googleId: tokenClaims.sub },
+      update: {
+        googleId: tokenClaims.sub,
+        email: userInfo.email,
+        picture: userInfo.picture,
+      },
+      create: {
+        googleId: tokenClaims.sub,
+        email: userInfo.email,
+        picture: userInfo.picture,
+      },
+    });
+  } else if (AUTH_PROVIDER === 'authentik') {
+    user = await prisma.user.upsert({
+      where: { authentikId: tokenClaims.sub },
+      update: {
+        authentikId: tokenClaims.sub,
+        email: userInfo.email,
+        picture: userInfo.picture,
+      },
+      create: {
+        authentikId: tokenClaims.sub,
+        email: userInfo.email,
+        picture: userInfo.picture,
+      },
+    });
+  }
 
   // This means the user is trying to adopt a device by first logging/signin up/in
   if (deviceId) {
     const deviceAdopted = await prisma.device.findUnique({
       where: { id: deviceId },
-      select: { user: { select: { googleId: true } } },
+      select: { user: { select: { googleId: true, authentikId: true } } },
     });
 
+    const currentUserId = AUTH_PROVIDER === 'google' ? tokenClaims.sub : tokenClaims.sub;
+    const deviceOwnerId = AUTH_PROVIDER === 'google' ? 
+      deviceAdopted?.user.googleId : 
+      deviceAdopted?.user.authentikId;
 
-    const isAdoptedByCurrentUser = deviceAdopted?.user.googleId === tokenClaims.sub;
+    const isAdoptedByCurrentUser = deviceOwnerId === currentUserId;
     const isAdoptedByOther = deviceAdopted && !isAdoptedByCurrentUser;
+    
     if (isAdoptedByOther) {
       // Device is already adopted by another user. This can happen if:
       // 1. The device was resold without being de-registered by the previous owner.
@@ -133,8 +176,12 @@ export const Callback = async (req: express.Request, res: express.Response) => {
     const tempToken = crypto.randomBytes(20).toString("hex");
     const tempTokenExpiresAt = new Date(new Date().getTime() + 5 * 60000);
 
+    const whereClause = AUTH_PROVIDER === 'google' ? 
+      { googleId: tokenClaims.sub } : 
+      { authentikId: tokenClaims.sub };
+
     await prisma.user.update({
-      where: { googleId: tokenClaims.sub },
+      where: whereClause,
       data: {
         device: {
           upsert: {
@@ -146,13 +193,20 @@ export const Callback = async (req: express.Request, res: express.Response) => {
       },
     });
 
-    console.log("Adopted device", deviceId, "for user", tokenClaims.sub);
+    console.log("Adopted device", deviceId, "for user", tokenClaims.sub, "via", AUTH_PROVIDER);
 
     const url = new URL(returnTo);
     url.searchParams.append("tempToken", tempToken);
     url.searchParams.append("deviceId", deviceId);
-    url.searchParams.append("oidcGoogle", tokenSet.id_token.toString());
-    url.searchParams.append("clientId", process.env.GOOGLE_CLIENT_ID);
+    
+    if (AUTH_PROVIDER === 'google') {
+      url.searchParams.append("oidcGoogle", tokenSet.id_token.toString());
+      url.searchParams.append("clientId", process.env.GOOGLE_CLIENT_ID!);
+    } else {
+      url.searchParams.append("oidcAuthentik", tokenSet.id_token.toString());
+      url.searchParams.append("clientId", process.env.AUTHENTIK_CLIENT_ID!);
+    }
+    
     return res.redirect(url.toString());
   }
   return res.redirect(returnTo);

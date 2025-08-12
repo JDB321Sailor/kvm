@@ -15,8 +15,12 @@ export const List = async (req: express.Request, res: express.Response) => {
   const idToken = req.session?.id_token;
   const { iss, sub } = jose.decodeJwt(idToken);
 
-  // Authorization server’s identifier for the user
-  const isGoogle = iss === "https://accounts.google.com";
+  const authProvider = process.env.AUTH_PROVIDER || 'google';
+  
+  // Authorization server's identifier for the user
+  const isGoogle = iss === "https://accounts.google.com" && authProvider === 'google';
+  const isAuthentik = iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik';
+  
   if (isGoogle) {
     const devices = await prisma.device.findMany({
       where: { user: { googleId: sub } },
@@ -28,21 +32,42 @@ export const List = async (req: express.Request, res: express.Response) => {
         return { ...device, online: activeConnections.has(device.id) };
       }),
     });
+  } else if (isAuthentik) {
+    const devices = await prisma.device.findMany({
+      where: { user: { authentikId: sub } },
+      select: { id: true, name: true, lastSeen: true },
+    });
+
+    return res.json({
+      devices: devices.map(device => {
+        return { ...device, online: activeConnections.has(device.id) };
+      }),
+    });
   } else {
-    throw new BadRequestError("Token is not from Google");
+    throw new BadRequestError(`Token is not from supported authentication provider: ${authProvider}`);
   }
 };
 
 export const Retrieve = async (req: express.Request, res: express.Response) => {
   const idToken = req.session?.id_token;
-  const { sub } = jose.decodeJwt(idToken);
+  const { iss, sub } = jose.decodeJwt(idToken);
   const { id } = req.params;
   if (!id) throw new UnprocessableEntityError("Missing device id in params");
 
-  const device = await prisma.device.findUnique({
-    where: { id, user: { googleId: sub } },
-    select: { id: true, name: true, user: { select: { googleId: true } } },
-  });
+  const authProvider = process.env.AUTH_PROVIDER || 'google';
+  let device;
+  
+  if (iss === "https://accounts.google.com" && authProvider === 'google') {
+    device = await prisma.device.findUnique({
+      where: { id, user: { googleId: sub } },
+      select: { id: true, name: true, user: { select: { googleId: true } } },
+    });
+  } else if (iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik') {
+    device = await prisma.device.findUnique({
+      where: { id, user: { authentikId: sub } },
+      select: { id: true, name: true, user: { select: { authentikId: true } } },
+    });
+  }
 
   if (!device) throw new NotFoundError("Device not found");
   return res.status(200).json({ device });
@@ -50,7 +75,7 @@ export const Retrieve = async (req: express.Request, res: express.Response) => {
 
 export const Update = async (req: express.Request, res: express.Response) => {
   const idToken = req.session?.id_token;
-  const { sub } = jose.decodeJwt(idToken);
+  const { iss, sub } = jose.decodeJwt(idToken);
   if (!sub) throw new UnauthorizedError("Missing sub in token");
 
   const { id } = req.params;
@@ -59,11 +84,22 @@ export const Update = async (req: express.Request, res: express.Response) => {
   const { name } = req.body as { name: string };
   if (!name) throw new UnprocessableEntityError("Missing name in body");
 
-  const device = await prisma.device.update({
-    where: { id, user: { googleId: sub } },
-    data: { name },
-    select: { id: true },
-  });
+  const authProvider = process.env.AUTH_PROVIDER || 'google';
+  let device;
+  
+  if (iss === "https://accounts.google.com" && authProvider === 'google') {
+    device = await prisma.device.update({
+      where: { id, user: { googleId: sub } },
+      data: { name },
+      select: { id: true },
+    });
+  } else if (iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik') {
+    device = await prisma.device.update({
+      where: { id, user: { authentikId: sub } },
+      data: { name },
+      select: { id: true },
+    });
+  }
 
   return res.json(device);
 };
@@ -110,13 +146,19 @@ export const Delete = async (req: express.Request, res: express.Response) => {
   }
 
   const idToken = req.session?.id_token;
-  const { sub } = jose.decodeJwt(idToken);
+  const { iss, sub } = jose.decodeJwt(idToken);
   if (!sub) throw new UnauthorizedError("Missing sub in token");
 
   const { id } = req.params;
   if (!id) throw new UnprocessableEntityError("Missing device id in params");
 
-  await prisma.device.delete({ where: { id, user: { googleId: sub } } });
+  const authProvider = process.env.AUTH_PROVIDER || 'google';
+  
+  if (iss === "https://accounts.google.com" && authProvider === 'google') {
+    await prisma.device.delete({ where: { id, user: { googleId: sub } } });
+  } else if (iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik') {
+    await prisma.device.delete({ where: { id, user: { authentikId: sub } } });
+  }
 
   // We just removed the device, so we should close any running open socket connections
   const conn = activeConnections.get(id);

@@ -23,9 +23,21 @@ declare global {
       APP_HOSTNAME: string;
       COOKIE_SECRET: string;
 
-      // We use Google OIDC for authentication
+      // Authentication provider selection
+      AUTH_PROVIDER: "google" | "authentik";
+
+      // Google OIDC for authentication
       GOOGLE_CLIENT_ID: string;
       GOOGLE_CLIENT_SECRET: string;
+
+      // Authentik OIDC for authentication
+      AUTHENTIK_ISSUER: string;
+      AUTHENTIK_CLIENT_ID: string;
+      AUTHENTIK_CLIENT_SECRET: string;
+      AUTHENTIK_AUTHORIZATION_URL: string;
+      AUTHENTIK_TOKEN_URL: string;
+      AUTHENTIK_USERINFO_URL: string;
+      AUTHENTIK_JWKS_URL: string;
 
       // We use Cloudflare STUN & TURN server for cloud users
       CLOUDFLARE_TURN_ID: string;
@@ -97,9 +109,16 @@ app.get(
     const { sub, iss, exp, aud, iat, jti, nbf } = jose.decodeJwt(idToken);
 
     let user;
-    if (iss === "https://accounts.google.com") {
+    const authProvider = process.env.AUTH_PROVIDER || 'google';
+    
+    if (iss === "https://accounts.google.com" && authProvider === 'google') {
       user = await prisma.user.findUnique({
         where: { googleId: sub },
+        select: { picture: true, email: true },
+      });
+    } else if (iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik') {
+      user = await prisma.user.findUnique({
+        where: { authentikId: sub },
         select: { picture: true, email: true },
       });
     }
@@ -130,6 +149,7 @@ app.post(
 );
 
 app.post("/oidc/google", asyncHandler(OIDC.Google));
+app.post("/oidc/login", asyncHandler(OIDC.Login));
 app.get("/oidc/callback_o", asyncHandler(OIDC.Callback));
 app.get("/oidc/callback", (req, res) => {
   /*

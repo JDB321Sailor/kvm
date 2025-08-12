@@ -7,17 +7,27 @@ import { activeConnections, iceServers, inFlight } from "./webrtc-signaling";
 
 export const CreateSession = async (req: express.Request, res: express.Response) => {
   const idToken = req.session?.id_token;
-  const { sub } = jose.decodeJwt(idToken);
+  const { iss, sub } = jose.decodeJwt(idToken);
 
   const { id, sd } = req.body;
 
   if (!id) throw new UnprocessableEntityError("Missing id");
   if (!sd) throw new UnprocessableEntityError("Missing sd");
 
-  const device = await prisma.device.findUnique({
-    where: { id, user: { googleId: sub } },
-    select: { id: true },
-  });
+  const authProvider = process.env.AUTH_PROVIDER || 'google';
+  let device;
+  
+  if (iss === "https://accounts.google.com" && authProvider === 'google') {
+    device = await prisma.device.findUnique({
+      where: { id, user: { googleId: sub } },
+      select: { id: true },
+    });
+  } else if (iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik') {
+    device = await prisma.device.findUnique({
+      where: { id, user: { authentikId: sub } },
+      select: { id: true },
+    });
+  }
 
   if (!device) {
     throw new NotFoundError("Device not found");
@@ -131,16 +141,28 @@ export const CreateIceCredentials = async (
 
 export const CreateTurnActivity = async (req: express.Request, res: express.Response) => {
   const idToken = req.session?.id_token;
-  const { sub } = jose.decodeJwt(idToken);
+  const { iss, sub } = jose.decodeJwt(idToken);
   const { bytesReceived, bytesSent } = req.body;
 
-  await prisma.turnActivity.create({
-    data: {
-      bytesReceived,
-      bytesSent,
-      user: { connect: { googleId: sub } },
-    },
-  });
+  const authProvider = process.env.AUTH_PROVIDER || 'google';
+  
+  if (iss === "https://accounts.google.com" && authProvider === 'google') {
+    await prisma.turnActivity.create({
+      data: {
+        bytesReceived,
+        bytesSent,
+        user: { connect: { googleId: sub } },
+      },
+    });
+  } else if (iss === process.env.AUTHENTIK_ISSUER && authProvider === 'authentik') {
+    await prisma.turnActivity.create({
+      data: {
+        bytesReceived,
+        bytesSent,
+        user: { connect: { authentikId: sub } },
+      },
+    });
+  }
 
   return res.json({ success: true });
 };
