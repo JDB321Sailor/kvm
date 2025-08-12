@@ -1,11 +1,11 @@
-# JETKVM Cloud - Simplified nginx Configuration
+# JETKVM Cloud - Nginx Configuration
 
-This project has been simplified to use nginx with self-signed certificates instead of Traefik with Let's Encrypt certificates.
+This project has been created to use nginx with self-signed certificates instead of Traefik with Let's Encrypt certificates.
 
 ## Architecture
 
 - **nginx**: Reverse proxy with SSL termination
-- **Self-signed certificate**: For IP address 10.0.0.14
+- **Self-signed certificate**: For example IP address 10.0.0.14
 - **Docker Compose**: Container orchestration
 - **PostgreSQL**: Database backend
 
