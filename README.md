@@ -1,6 +1,6 @@
 # JETKVM Cloud - nginx SSL Configuration
 
-This project uses nginx with self-signed certificates for secure local deployment with configurable IP addressing.
+This project deploys a containerized deployment of the JETKVM Cloud which uses nginx with self-signed certificates for secure local deployment with configurable IP addressing.
 
 > **Important**: This deployment is designed to work by using environment variables for IP configuration.
 
@@ -15,22 +15,42 @@ This project uses nginx with self-signed certificates for secure local deploymen
 
 ⚠️ **Important**: Complete these steps before deployment:
 
-1. **Configure environment variables:**
-   - Copy `cloud-api/.env.example` to `cloud-api/.env`
-   - Set `LOCAL_IP` to your machine's IP address (e.g., `LOCAL_IP=192.168.1.100`)
-   - Update all placeholder values with your secure credentials
+1. **Identify your local host IP address:**
+   - Find your machine's local network IP address (e.g., `192.168.1.100`, `10.0.0.50`)
+   - You can use `ip addr` (Linux), `ifconfig` (macOS/Linux), or `ipconfig` (Windows)
+   - This IP will be used in the environment configuration
 
-2. **Build Docker images:**
+2. **Clone the repository:**
    ```bash
-   ./manage-stack.sh build
+   git clone https://github.com/JDB321Sailor/kvm.git
+   cd kvm/jetkvm-cloud
    ```
 
-3. **Generate SSL certificates:**
+3. **Install required dependencies:**
+   - **Docker**: Install Docker Engine for your platform
+   - **Docker Compose**: Ensure Docker Compose is available (usually included with Docker Desktop)
+   - **OpenSSL**: Required for SSL certificate generation (usually pre-installed on Linux/macOS)
+   - **Git**: For repository cloning and version control
+   
+   **Ubuntu/Debian:**
    ```bash
-   ./regenerate-cert.sh
+   sudo apt update
+   sudo apt install docker.io docker-compose openssl git
+   sudo usermod -aG docker $USER  # Add user to docker group
+   # Log out and back in for group changes to take effect
    ```
+   
+   **macOS (with Homebrew):**
+   ```bash
+   brew install --cask docker
+   # Docker Desktop includes Docker Compose
+   ```
+   
+   **Windows:**
+   - Install Docker Desktop from https://docker.com
+   - Git is available from https://git-scm.com
 
-## Quick Start
+## Getting Started
 
 1. **Configure environment:**
    ```bash
