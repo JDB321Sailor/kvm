@@ -13,7 +13,7 @@ This project has been simplified to use nginx with self-signed certificates inst
 
 1. **Start the stack:**
    ```bash
-   ./manage-stack-simple.sh up
+   ./manage-stack.sh up
    ```
 
 2. **Access the application:**
@@ -40,25 +40,25 @@ The system uses a self-signed certificate for the IP address `10.0.0.14`. This p
 
 ```bash
 # Start the stack
-./manage-stack-simple.sh up
+./manage-stack.sh up
 
 # Stop the stack
-./manage-stack-simple.sh down
+./manage-stack.sh down
 
 # Restart the stack
-./manage-stack-simple.sh restart
+./manage-stack.sh restart
 
 # Show status
-./manage-stack-simple.sh status
+./manage-stack.sh status
 
 # Show certificate info
-./manage-stack-simple.sh cert
+./manage-stack.sh cert
 
 # Test endpoints
-./manage-stack-simple.sh test
+./manage-stack.sh test
 
 # Show logs
-./manage-stack-simple.sh logs [service]
+./manage-stack.sh logs [service]
 ```
 
 ## JetKVM Device Configuration
@@ -82,7 +82,7 @@ The nginx configuration handles:
 ```
 jetkvm-cloud/
 ├── docker-compose.yaml          # Simplified stack definition
-├── manage-stack-simple.sh       # Management script
+├── manage-stack.sh              # Management script
 ├── regenerate-cert.sh           # Certificate regeneration
 ├── nginx/
 │   ├── nginx.conf              # nginx configuration
@@ -116,19 +116,19 @@ This is expected with self-signed certificates. Click "Advanced" → "Proceed to
 If you need a new certificate:
 ```bash
 ./regenerate-cert.sh
-./manage-stack-simple.sh restart
+./manage-stack.sh restart
 ```
 
 ### Service Health
 Check container health:
 ```bash
-./manage-stack-simple.sh status
+./manage-stack.sh status
 ```
 
 ### Logs
 View service logs:
 ```bash
-./manage-stack-simple.sh logs          # All services
-./manage-stack-simple.sh logs nginx    # nginx only
-./manage-stack-simple.sh logs api      # API only
+./manage-stack.sh logs          # All services
+./manage-stack.sh logs nginx    # nginx only
+./manage-stack.sh logs api      # API only
 ```
